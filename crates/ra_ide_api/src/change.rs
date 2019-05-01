@@ -5,7 +5,7 @@ use std::{
 
 use rustc_hash::FxHashMap;
 use ra_db::{
-    SourceRootId, FileId, CrateGraph, SourceDatabase, SourceRoot,
+    SourceRootId, FileId, CrateGraph, SourceDatabase, SourceRoot, FileData,
     salsa::{Database, SweepStrategy},
 };
 use ra_syntax::SourceFile;
@@ -171,7 +171,8 @@ impl RootDatabase {
             self.apply_root_change(root_id, root_change);
         }
         for (file_id, text) in change.files_changed {
-            self.set_file_text(file_id, text)
+            let file_data = FileData::new(text);
+            self.set_file_data(file_id, Arc::new(file_data))
         }
         if !change.libraries_added.is_empty() {
             let mut libraries = Vec::clone(&self.library_roots());
@@ -191,13 +192,15 @@ impl RootDatabase {
     fn apply_root_change(&mut self, root_id: SourceRootId, root_change: RootChange) {
         let mut source_root = SourceRoot::clone(&self.source_root(root_id));
         for add_file in root_change.added {
-            self.set_file_text(add_file.file_id, add_file.text);
+            let file_data = FileData::new(add_file.text);
+            self.set_file_data(add_file.file_id, Arc::new(file_data));
             self.set_file_relative_path(add_file.file_id, add_file.path.clone());
             self.set_file_source_root(add_file.file_id, root_id);
             source_root.files.insert(add_file.path, add_file.file_id);
         }
         for remove_file in root_change.removed {
-            self.set_file_text(remove_file.file_id, Default::default());
+            let file_data = FileData::new(Default::default());
+            self.set_file_data(remove_file.file_id, Arc::new(file_data));
             source_root.files.remove(&remove_file.path);
         }
         self.set_source_root(root_id, Arc::new(source_root));
@@ -219,11 +222,8 @@ impl RootDatabase {
 
         let sweep = SweepStrategy::default().discard_values().sweep_all_revisions();
 
-        self.query(ra_db::ParseQuery).sweep(sweep);
-
-        self.query(hir::db::HirParseQuery).sweep(sweep);
+        self.query(hir::db::ParseMacroQuery).sweep(sweep);
         self.query(hir::db::AstIdMapQuery).sweep(sweep);
-        self.query(hir::db::AstIdToNodeQuery).sweep(sweep);
 
         self.query(hir::db::RawItemsWithSourceMapQuery).sweep(sweep);
         self.query(hir::db::BodyWithSourceMapQuery).sweep(sweep);

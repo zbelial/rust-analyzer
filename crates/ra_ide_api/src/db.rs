@@ -4,7 +4,7 @@ use std::{
 };
 
 use ra_db::{
-    CheckCanceled, FileId, Canceled, SourceDatabase,
+    CheckCanceled, FileId, Canceled, SourceDatabase, SourceManager,
     salsa,
 };
 
@@ -20,8 +20,15 @@ use crate::{LineIndex, symbol_index::{self, SymbolsDatabase}};
 #[derive(Debug)]
 pub(crate) struct RootDatabase {
     runtime: salsa::Runtime<RootDatabase>,
+    source_manager: Arc<SourceManager>,
     pub(crate) last_gc: time::Instant,
     pub(crate) last_gc_check: time::Instant,
+}
+
+impl AsRef<SourceManager> for RootDatabase {
+    fn as_ref(&self) -> &SourceManager {
+        &self.source_manager
+    }
 }
 
 impl salsa::Database for RootDatabase {
@@ -37,6 +44,7 @@ impl Default for RootDatabase {
     fn default() -> RootDatabase {
         let mut db = RootDatabase {
             runtime: salsa::Runtime::default(),
+            source_manager: Default::default(),
             last_gc: time::Instant::now(),
             last_gc_check: time::Instant::now(),
         };
@@ -51,6 +59,7 @@ impl salsa::ParallelDatabase for RootDatabase {
     fn snapshot(&self) -> salsa::Snapshot<RootDatabase> {
         salsa::Snapshot::new(RootDatabase {
             runtime: self.runtime.snapshot(self),
+            source_manager: Arc::clone(&self.source_manager),
             last_gc: self.last_gc.clone(),
             last_gc_check: self.last_gc_check.clone(),
         })

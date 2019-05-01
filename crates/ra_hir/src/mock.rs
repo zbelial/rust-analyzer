@@ -3,7 +3,7 @@ use std::{sync::Arc, panic};
 use parking_lot::Mutex;
 use ra_db::{
     FilePosition, FileId, CrateGraph, SourceRoot, SourceRootId, SourceDatabase, salsa,
-    Edition,
+    Edition, SourceManager, FileData,
 };
 use relative_path::RelativePathBuf;
 use test_utils::{parse_fixture, CURSOR_MARKER, extract_offset};
@@ -16,9 +16,16 @@ pub const WORKSPACE: SourceRootId = SourceRootId(0);
 #[salsa::database(ra_db::SourceDatabaseStorage, db::HirDatabaseStorage, db::DefDatabaseStorage)]
 #[derive(Debug)]
 pub struct MockDatabase {
+    source_manager: Arc<SourceManager>,
     events: Mutex<Option<Vec<salsa::Event<MockDatabase>>>>,
     runtime: salsa::Runtime<MockDatabase>,
     files: FxHashMap<String, FileId>,
+}
+
+impl AsRef<SourceManager> for MockDatabase {
+    fn as_ref(&self) -> &SourceManager {
+        &self.source_manager
+    }
 }
 
 impl panic::RefUnwindSafe for MockDatabase {}
@@ -149,7 +156,8 @@ impl MockDatabase {
         let prev = self.files.insert(path.to_string(), file_id);
         assert!(prev.is_none(), "duplicate files in the text fixture");
         let text = Arc::new(text.to_string());
-        self.set_file_text(file_id, text);
+        let file_data = FileData::new(text);
+        self.set_file_data(file_id, Arc::new(file_data));
         self.set_file_relative_path(file_id, rel_path.clone());
         self.set_file_source_root(file_id, source_root_id);
         source_root.files.insert(rel_path, file_id);
@@ -192,6 +200,7 @@ impl salsa::Database for MockDatabase {
 impl Default for MockDatabase {
     fn default() -> MockDatabase {
         let mut db = MockDatabase {
+            source_manager: Default::default(),
             events: Default::default(),
             runtime: salsa::Runtime::default(),
             files: FxHashMap::default(),
@@ -204,6 +213,7 @@ impl Default for MockDatabase {
 impl salsa::ParallelDatabase for MockDatabase {
     fn snapshot(&self) -> salsa::Snapshot<MockDatabase> {
         salsa::Snapshot::new(MockDatabase {
+            source_manager: Arc::clone(&self.source_manager),
             events: Default::default(),
             runtime: self.runtime.snapshot(self),
             // only the root database can be used to get file_id by path.

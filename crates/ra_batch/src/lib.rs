@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use rustc_hash::FxHashMap;
 
 use ra_db::{
-    CrateGraph, FileId, SourceRoot, SourceRootId, SourceDatabase, salsa,
+    CrateGraph, FileId, SourceRoot, SourceRootId, SourceDatabase, salsa, SourceManager, FileData,
 };
 use ra_hir::db;
 use ra_project_model::ProjectWorkspace;
@@ -20,6 +20,13 @@ type Result<T> = std::result::Result<T, failure::Error>;
 #[derive(Debug)]
 pub struct BatchDatabase {
     runtime: salsa::Runtime<BatchDatabase>,
+    source_manager: Arc<SourceManager>,
+}
+
+impl AsRef<SourceManager> for BatchDatabase {
+    fn as_ref(&self) -> &SourceManager {
+        &self.source_manager
+    }
 }
 
 impl salsa::Database for BatchDatabase {
@@ -37,7 +44,10 @@ fn vfs_root_to_id(r: ra_vfs::VfsRoot) -> SourceRootId {
 
 impl BatchDatabase {
     pub fn load(crate_graph: CrateGraph, vfs: &mut Vfs) -> BatchDatabase {
-        let mut db = BatchDatabase { runtime: salsa::Runtime::default() };
+        let mut db = BatchDatabase {
+            runtime: salsa::Runtime::default(),
+            source_manager: Default::default(),
+        };
         db.set_crate_graph(Arc::new(crate_graph));
 
         // wait until Vfs has loaded all roots
@@ -58,7 +68,8 @@ impl BatchDatabase {
                         let mut file_map = FxHashMap::default();
                         for (vfs_file, path, text) in files {
                             let file_id = vfs_file_to_id(vfs_file);
-                            db.set_file_text(file_id, text);
+                            let file_data = FileData::new(text);
+                            db.set_file_data(file_id, Arc::new(file_data));
                             db.set_file_relative_path(file_id, path.clone());
                             db.set_file_source_root(file_id, source_root_id);
                             file_map.insert(path, file_id);

@@ -81,7 +81,7 @@ impl HirFileId {
     }
 }
 
-fn parse_macro(
+pub(crate) fn parse_macro(
     db: &impl DefDatabase,
     macro_call_id: MacroCallId,
 ) -> Result<TreeArc<SourceFile>, String> {
