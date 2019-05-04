@@ -283,6 +283,15 @@
 <span id="283">283</span>
 <span id="284">284</span>
 <span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module is concerned with finding methods that a given type provides.</span>
 <span class="doccomment">//! For details about how this works in rustc, see the method lookup page in the</span>
@@ -302,7 +311,7 @@
     <span class="ident">generics</span>::<span class="ident">HasGenericParams</span>,
     <span class="ident">ty</span>::<span class="ident">primitive</span>::{<span class="ident">UncertainIntTy</span>, <span class="ident">UncertainFloatTy</span>}
 };
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">TraitRef</span>, <span class="ident">Substs</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">TraitRef</span>, <span class="ident">Canonical</span>};
 
 <span class="doccomment">/// This is used as a key for indexing impls.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
@@ -416,124 +425,122 @@
     }
 }
 
+<span class="doccomment">/// Look up the method with the given name, returning the actual autoderefed</span>
+<span class="doccomment">/// receiver type (but without autoref applied yet).</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">lookup_method</span>(
+    <span class="ident">ty</span>: <span class="kw-2">&amp;</span><span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>,
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">Name</span>,
+    <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Ty</span>, <span class="ident">Function</span>)<span class="op">&gt;</span> {
+    <span class="ident">iterate_method_candidates</span>(<span class="ident">ty</span>, <span class="ident">db</span>, <span class="ident">resolver</span>, <span class="prelude-val">Some</span>(<span class="ident">name</span>), <span class="op">|</span><span class="ident">ty</span>, <span class="ident">f</span><span class="op">|</span> <span class="prelude-val">Some</span>((<span class="ident">ty</span>.<span class="ident">clone</span>(), <span class="ident">f</span>)))
+}
+
+<span class="comment">// This would be nicer if it just returned an iterator, but that runs into</span>
+<span class="comment">// lifetime problems, because we need to borrow temp `CrateImplBlocks`.</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iterate_method_candidates</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+    <span class="ident">ty</span>: <span class="kw-2">&amp;</span><span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>,
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
+    <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
+    <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="comment">// For method calls, rust first does any number of autoderef, and then one</span>
+    <span class="comment">// autoref (i.e. when the method takes &amp;self or &amp;mut self). We just ignore</span>
+    <span class="comment">// the autoref currently -- when we find a method matching the given name,</span>
+    <span class="comment">// we assume it fits.</span>
+
+    <span class="comment">// Also note that when we&#39;ve got a receiver like &amp;S, even if the method we</span>
+    <span class="comment">// find in the end takes &amp;self, we still do the autoderef step (just as</span>
+    <span class="comment">// rustc does an autoderef and then autoref again).</span>
+
+    <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="ident">resolver</span>.<span class="ident">krate</span>()<span class="question-mark">?</span>;
+    <span class="kw">for</span> <span class="ident">derefed_ty</span> <span class="kw">in</span> <span class="ident">ty</span>.<span class="ident">value</span>.<span class="ident">clone</span>().<span class="ident">autoderef</span>(<span class="ident">db</span>) {
+        <span class="kw">let</span> <span class="ident">derefed_ty</span> <span class="op">=</span> <span class="ident">Canonical</span> { <span class="ident">value</span>: <span class="ident">derefed_ty</span>, <span class="ident">num_vars</span>: <span class="ident">ty</span>.<span class="ident">num_vars</span> };
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">iterate_inherent_methods</span>(<span class="kw-2">&amp;</span><span class="ident">derefed_ty</span>, <span class="ident">db</span>, <span class="ident">name</span>, <span class="ident">krate</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">callback</span>)
+        {
+            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span>
+            <span class="ident">iterate_trait_method_candidates</span>(<span class="kw-2">&amp;</span><span class="ident">derefed_ty</span>, <span class="ident">db</span>, <span class="ident">resolver</span>, <span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">callback</span>)
+        {
+            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
+        }
+    }
+    <span class="prelude-val">None</span>
+}
+
+<span class="kw">fn</span> <span class="ident">iterate_trait_method_candidates</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+    <span class="ident">ty</span>: <span class="kw-2">&amp;</span><span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>,
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
+    <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
+    <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="ident">resolver</span>.<span class="ident">krate</span>()<span class="question-mark">?</span>;
+    <span class="lifetime">&#39;traits</span>: <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">resolver</span>.<span class="ident">traits_in_scope</span>() {
+        <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">t</span>.<span class="ident">trait_data</span>(<span class="ident">db</span>);
+        <span class="comment">// we&#39;ll be lazy about checking whether the type implements the</span>
+        <span class="comment">// trait, but if we find out it doesn&#39;t, we&#39;ll skip the rest of the</span>
+        <span class="comment">// iteration</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">known_implemented</span> <span class="op">=</span> <span class="bool-val">false</span>;
+        <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">data</span>.<span class="ident">items</span>() {
+            <span class="kw">match</span> <span class="ident">item</span> {
+                <span class="kw-2">&amp;</span><span class="ident">TraitItem</span>::<span class="ident">Function</span>(<span class="ident">m</span>) <span class="op">=&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">m</span>.<span class="ident">signature</span>(<span class="ident">db</span>);
+                    <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">sig</span>.<span class="ident">name</span>() <span class="op">==</span> <span class="ident">name</span>) <span class="op">&amp;&amp;</span> <span class="ident">sig</span>.<span class="ident">has_self_param</span>() {
+                        <span class="kw">if</span> <span class="op">!</span><span class="ident">known_implemented</span> {
+                            <span class="kw">let</span> <span class="ident">trait_ref</span> <span class="op">=</span> <span class="ident">canonical_trait_ref</span>(<span class="ident">db</span>, <span class="ident">t</span>, <span class="ident">ty</span>.<span class="ident">clone</span>());
+                            <span class="comment">// FIXME cache this implements check (without solution) in a query?</span>
+                            <span class="kw">if</span> <span class="kw">super</span>::<span class="ident">traits</span>::<span class="ident">implements</span>(<span class="ident">db</span>, <span class="ident">krate</span>, <span class="ident">trait_ref</span>).<span class="ident">is_none</span>() {
+                                <span class="kw">continue</span> <span class="lifetime">&#39;traits</span>;
+                            }
+                        }
+                        <span class="ident">known_implemented</span> <span class="op">=</span> <span class="bool-val">true</span>;
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">callback</span>(<span class="kw-2">&amp;</span><span class="ident">ty</span>.<span class="ident">value</span>, <span class="ident">m</span>) {
+                            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
+                        }
+                    }
+                }
+                <span class="kw">_</span> <span class="op">=&gt;</span> {}
+            }
+        }
+    }
+    <span class="prelude-val">None</span>
+}
+
+<span class="kw">fn</span> <span class="ident">iterate_inherent_methods</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+    <span class="ident">ty</span>: <span class="kw-2">&amp;</span><span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>,
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
+    <span class="ident">krate</span>: <span class="ident">Crate</span>,
+    <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">def_crate</span>(<span class="ident">db</span>, <span class="ident">krate</span>, <span class="kw-2">&amp;</span><span class="ident">ty</span>.<span class="ident">value</span>) {
+        <span class="prelude-val">Some</span>(<span class="ident">krate</span>) <span class="op">=&gt;</span> <span class="ident">krate</span>,
+        <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
+    };
+    <span class="kw">let</span> <span class="ident">impls</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">impls_in_crate</span>(<span class="ident">krate</span>);
+
+    <span class="kw">for</span> <span class="ident">impl_block</span> <span class="kw">in</span> <span class="ident">impls</span>.<span class="ident">lookup_impl_blocks</span>(<span class="kw-2">&amp;</span><span class="ident">ty</span>.<span class="ident">value</span>) {
+        <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">impl_block</span>.<span class="ident">items</span>(<span class="ident">db</span>) {
+            <span class="kw">match</span> <span class="ident">item</span> {
+                <span class="ident">ImplItem</span>::<span class="ident">Method</span>(<span class="ident">f</span>) <span class="op">=&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">signature</span>(<span class="ident">db</span>);
+                    <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">sig</span>.<span class="ident">name</span>() <span class="op">==</span> <span class="ident">name</span>) <span class="op">&amp;&amp;</span> <span class="ident">sig</span>.<span class="ident">has_self_param</span>() {
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">callback</span>(<span class="kw-2">&amp;</span><span class="ident">ty</span>.<span class="ident">value</span>, <span class="ident">f</span>) {
+                            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
+                        }
+                    }
+                }
+                <span class="kw">_</span> <span class="op">=&gt;</span> {}
+            }
+        }
+    }
+    <span class="prelude-val">None</span>
+}
+
 <span class="kw">impl</span> <span class="ident">Ty</span> {
-    <span class="doccomment">/// Look up the method with the given name, returning the actual autoderefed</span>
-    <span class="doccomment">/// receiver type (but without autoref applied yet).</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">lookup_method</span>(
-        <span class="self">self</span>,
-        <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
-        <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">Name</span>,
-        <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Ty</span>, <span class="ident">Function</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">iterate_method_candidates</span>(<span class="ident">db</span>, <span class="ident">resolver</span>, <span class="prelude-val">Some</span>(<span class="ident">name</span>), <span class="op">|</span><span class="ident">ty</span>, <span class="ident">f</span><span class="op">|</span> <span class="prelude-val">Some</span>((<span class="ident">ty</span>.<span class="ident">clone</span>(), <span class="ident">f</span>)))
-    }
-
-    <span class="comment">// This would be nicer if it just returned an iterator, but that runs into</span>
-    <span class="comment">// lifetime problems, because we need to borrow temp `CrateImplBlocks`.</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iterate_method_candidates</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
-        <span class="self">self</span>,
-        <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
-        <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
-        <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
-        <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="comment">// For method calls, rust first does any number of autoderef, and then one</span>
-        <span class="comment">// autoref (i.e. when the method takes &amp;self or &amp;mut self). We just ignore</span>
-        <span class="comment">// the autoref currently -- when we find a method matching the given name,</span>
-        <span class="comment">// we assume it fits.</span>
-
-        <span class="comment">// Also note that when we&#39;ve got a receiver like &amp;S, even if the method we</span>
-        <span class="comment">// find in the end takes &amp;self, we still do the autoderef step (just as</span>
-        <span class="comment">// rustc does an autoderef and then autoref again).</span>
-
-        <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="ident">resolver</span>.<span class="ident">krate</span>()<span class="question-mark">?</span>;
-        <span class="kw">for</span> <span class="ident">derefed_ty</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">autoderef</span>(<span class="ident">db</span>) {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span>
-                <span class="ident">derefed_ty</span>.<span class="ident">iterate_inherent_methods</span>(<span class="ident">db</span>, <span class="ident">name</span>, <span class="ident">krate</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">callback</span>)
-            {
-                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
-            }
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span>
-                <span class="ident">derefed_ty</span>.<span class="ident">iterate_trait_method_candidates</span>(<span class="ident">db</span>, <span class="ident">resolver</span>, <span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">callback</span>)
-            {
-                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
-            }
-        }
-        <span class="prelude-val">None</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">iterate_trait_method_candidates</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
-        <span class="ident">resolver</span>: <span class="kw-2">&amp;</span><span class="ident">Resolver</span>,
-        <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
-        <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="lifetime">&#39;traits</span>: <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">resolver</span>.<span class="ident">traits_in_scope</span>() {
-            <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">t</span>.<span class="ident">trait_data</span>(<span class="ident">db</span>);
-            <span class="comment">// we&#39;ll be lazy about checking whether the type implements the</span>
-            <span class="comment">// trait, but if we find out it doesn&#39;t, we&#39;ll skip the rest of the</span>
-            <span class="comment">// iteration</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">known_implemented</span> <span class="op">=</span> <span class="bool-val">false</span>;
-            <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">data</span>.<span class="ident">items</span>() {
-                <span class="kw">match</span> <span class="ident">item</span> {
-                    <span class="kw-2">&amp;</span><span class="ident">TraitItem</span>::<span class="ident">Function</span>(<span class="ident">m</span>) <span class="op">=&gt;</span> {
-                        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">m</span>.<span class="ident">signature</span>(<span class="ident">db</span>);
-                        <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">sig</span>.<span class="ident">name</span>() <span class="op">==</span> <span class="ident">name</span>) <span class="op">&amp;&amp;</span> <span class="ident">sig</span>.<span class="ident">has_self_param</span>() {
-                            <span class="kw">if</span> <span class="op">!</span><span class="ident">known_implemented</span> {
-                                <span class="kw">let</span> <span class="ident">trait_ref</span> <span class="op">=</span> <span class="ident">TraitRef</span> {
-                                    <span class="ident">trait_</span>: <span class="ident">t</span>,
-                                    <span class="ident">substs</span>: <span class="ident">fresh_substs_for_trait</span>(<span class="ident">db</span>, <span class="ident">t</span>, <span class="self">self</span>.<span class="ident">clone</span>()),
-                                };
-                                <span class="kw">let</span> (<span class="ident">trait_ref</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="kw">super</span>::<span class="ident">traits</span>::<span class="ident">canonicalize</span>(<span class="ident">trait_ref</span>);
-                                <span class="kw">if</span> <span class="ident">db</span>.<span class="ident">implements</span>(<span class="ident">trait_ref</span>).<span class="ident">is_none</span>() {
-                                    <span class="kw">continue</span> <span class="lifetime">&#39;traits</span>;
-                                }
-                            }
-                            <span class="ident">known_implemented</span> <span class="op">=</span> <span class="bool-val">true</span>;
-                            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">callback</span>(<span class="self">self</span>, <span class="ident">m</span>) {
-                                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
-                            }
-                        }
-                    }
-                    <span class="kw">_</span> <span class="op">=&gt;</span> {}
-                }
-            }
-        }
-        <span class="prelude-val">None</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">iterate_inherent_methods</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
-        <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Name</span><span class="op">&gt;</span>,
-        <span class="ident">krate</span>: <span class="ident">Crate</span>,
-        <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">def_crate</span>(<span class="ident">db</span>, <span class="ident">krate</span>, <span class="self">self</span>) {
-            <span class="prelude-val">Some</span>(<span class="ident">krate</span>) <span class="op">=&gt;</span> <span class="ident">krate</span>,
-            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
-        };
-        <span class="kw">let</span> <span class="ident">impls</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">impls_in_crate</span>(<span class="ident">krate</span>);
-
-        <span class="kw">for</span> <span class="ident">impl_block</span> <span class="kw">in</span> <span class="ident">impls</span>.<span class="ident">lookup_impl_blocks</span>(<span class="self">self</span>) {
-            <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">impl_block</span>.<span class="ident">items</span>(<span class="ident">db</span>) {
-                <span class="kw">match</span> <span class="ident">item</span> {
-                    <span class="ident">ImplItem</span>::<span class="ident">Method</span>(<span class="ident">f</span>) <span class="op">=&gt;</span> {
-                        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">signature</span>(<span class="ident">db</span>);
-                        <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">sig</span>.<span class="ident">name</span>() <span class="op">==</span> <span class="ident">name</span>) <span class="op">&amp;&amp;</span> <span class="ident">sig</span>.<span class="ident">has_self_param</span>() {
-                            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">callback</span>(<span class="self">self</span>, <span class="ident">f</span>) {
-                                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
-                            }
-                        }
-                    }
-                    <span class="kw">_</span> <span class="op">=&gt;</span> {}
-                }
-            }
-        }
-        <span class="prelude-val">None</span>
-    }
-
     <span class="comment">// This would be nicer if it just returned an iterator, but that runs into</span>
     <span class="comment">// lifetime problems, because we need to borrow temp `CrateImplBlocks`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iterate_impl_items</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
@@ -557,17 +564,28 @@
 }
 
 <span class="doccomment">/// This creates Substs for a trait with the given Self type and type variables</span>
-<span class="doccomment">/// for all other parameters. This is kind of a hack since these aren&#39;t &#39;real&#39;</span>
-<span class="doccomment">/// type variables; the resulting trait reference is just used for the</span>
-<span class="doccomment">/// preliminary method candidate check.</span>
-<span class="kw">fn</span> <span class="ident">fresh_substs_for_trait</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">tr</span>: <span class="ident">Trait</span>, <span class="ident">self_ty</span>: <span class="ident">Ty</span>) <span class="op">-&gt;</span> <span class="ident">Substs</span> {
+<span class="doccomment">/// for all other parameters, to query Chalk with it.</span>
+<span class="kw">fn</span> <span class="ident">canonical_trait_ref</span>(
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">trait_</span>: <span class="ident">Trait</span>,
+    <span class="ident">self_ty</span>: <span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>,
+) <span class="op">-&gt;</span> <span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">TraitRef</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">substs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-    <span class="kw">let</span> <span class="ident">generics</span> <span class="op">=</span> <span class="ident">tr</span>.<span class="ident">generic_params</span>(<span class="ident">db</span>);
-    <span class="ident">substs</span>.<span class="ident">push</span>(<span class="ident">self_ty</span>);
-    <span class="ident">substs</span>.<span class="ident">extend</span>(<span class="ident">generics</span>.<span class="ident">params_including_parent</span>().<span class="ident">into_iter</span>().<span class="ident">skip</span>(<span class="number">1</span>).<span class="ident">enumerate</span>().<span class="ident">map</span>(
-        <span class="op">|</span>(<span class="ident">i</span>, <span class="ident">_p</span>)<span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="kw">super</span>::<span class="ident">infer</span>::<span class="ident">InferTy</span>::<span class="ident">TypeVar</span>(<span class="kw">super</span>::<span class="ident">infer</span>::<span class="ident">TypeVarId</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u32</span>))),
-    ));
-    <span class="ident">substs</span>.<span class="ident">into</span>()
+    <span class="kw">let</span> <span class="ident">generics</span> <span class="op">=</span> <span class="ident">trait_</span>.<span class="ident">generic_params</span>(<span class="ident">db</span>);
+    <span class="kw">let</span> <span class="ident">num_vars</span> <span class="op">=</span> <span class="ident">self_ty</span>.<span class="ident">num_vars</span>;
+    <span class="ident">substs</span>.<span class="ident">push</span>(<span class="ident">self_ty</span>.<span class="ident">value</span>);
+    <span class="ident">substs</span>.<span class="ident">extend</span>(
+        <span class="ident">generics</span>
+            .<span class="ident">params_including_parent</span>()
+            .<span class="ident">into_iter</span>()
+            .<span class="ident">skip</span>(<span class="number">1</span>)
+            .<span class="ident">enumerate</span>()
+            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">_p</span>)<span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Bound</span>((<span class="ident">i</span> <span class="op">+</span> <span class="ident">num_vars</span>) <span class="kw">as</span> <span class="ident">u32</span>)),
+    );
+    <span class="ident">Canonical</span> {
+        <span class="ident">num_vars</span>: <span class="ident">substs</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span> <span class="op">+</span> <span class="ident">self_ty</span>.<span class="ident">num_vars</span>,
+        <span class="ident">value</span>: <span class="ident">TraitRef</span> { <span class="ident">trait_</span>, <span class="ident">substs</span>: <span class="ident">substs</span>.<span class="ident">into</span>() },
+    }
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../../";window.currentCrate = "ra_hir";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>

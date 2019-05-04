@@ -478,6 +478,62 @@
 <span id="478">478</span>
 <span id="479">479</span>
 <span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! The type system. We currently use this to infer types for completion, hover</span>
 <span class="doccomment">//! information and various assists.</span>
@@ -494,9 +550,10 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">display</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Deref</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">mem</span>};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Name</span>, <span class="ident">AdtDef</span>, <span class="ident">type_ref</span>::<span class="ident">Mutability</span>, <span class="ident">db</span>::<span class="ident">HirDatabase</span>, <span class="ident">Trait</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Name</span>, <span class="ident">AdtDef</span>, <span class="ident">type_ref</span>::<span class="ident">Mutability</span>, <span class="ident">db</span>::<span class="ident">HirDatabase</span>, <span class="ident">Trait</span>, <span class="ident">GenericParams</span>};
 <span class="kw">use</span> <span class="ident">display</span>::{<span class="ident">HirDisplay</span>, <span class="ident">HirFormatter</span>};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">lower</span>::{<span class="ident">TypableDef</span>, <span class="ident">type_for_def</span>, <span class="ident">type_for_field</span>, <span class="ident">callable_item_sig</span>};
@@ -562,13 +619,13 @@
     <span class="doccomment">/// fn foo() -&gt; i32 { 1 }</span>
     <span class="doccomment">/// let bar: fn() -&gt; i32 = foo;</span>
     <span class="doccomment">/// ```</span>
-    <span class="ident">FnPtr</span>,
+    <span class="ident">FnPtr</span> { <span class="ident">num_args</span>: <span class="ident">u16</span> },
 
     <span class="doccomment">/// The never type `!`.</span>
     <span class="ident">Never</span>,
 
     <span class="doccomment">/// A tuple type.  For example, `(i32, bool)`.</span>
-    <span class="ident">Tuple</span>,
+    <span class="ident">Tuple</span> { <span class="ident">cardinality</span>: <span class="ident">u16</span> },
 }
 
 <span class="doccomment">/// A nominal type with (maybe 0) type parameters. This might be a primitive</span>
@@ -599,8 +656,13 @@
         <span class="doccomment">/// surrounding impl, then the current function).</span>
         <span class="ident">idx</span>: <span class="ident">u32</span>,
         <span class="doccomment">/// The name of the parameter, for displaying.</span>
+        <span class="comment">// FIXME get rid of this</span>
         <span class="ident">name</span>: <span class="ident">Name</span>,
     },
+
+    <span class="doccomment">/// A bound type variable. Only used during trait resolution to represent</span>
+    <span class="doccomment">/// Chalk variables.</span>
+    <span class="ident">Bound</span>(<span class="ident">u32</span>),
 
     <span class="doccomment">/// A type variable used during type checking. Not to be confused with a</span>
     <span class="doccomment">/// type parameter.</span>
@@ -631,14 +693,6 @@
         <span class="ident">Substs</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">take</span>(<span class="ident">n</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>().<span class="ident">into</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">Ty</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>()
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>()
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">walk_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Ty</span>)) {
         <span class="comment">// Without an Arc::make_mut_slice, we can&#39;t avoid the clone here:</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
@@ -654,11 +708,43 @@
         }
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>[<span class="number">0</span>]
     }
+
+    <span class="doccomment">/// Return Substs that replace each parameter by itself (i.e. `Ty::Param`).</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">identity</span>(<span class="ident">generic_params</span>: <span class="kw-2">&amp;</span><span class="ident">GenericParams</span>) <span class="op">-&gt;</span> <span class="ident">Substs</span> {
+        <span class="ident">Substs</span>(
+            <span class="ident">generic_params</span>
+                .<span class="ident">params_including_parent</span>()
+                .<span class="ident">into_iter</span>()
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Param</span> { <span class="ident">idx</span>: <span class="ident">p</span>.<span class="ident">idx</span>, <span class="ident">name</span>: <span class="ident">p</span>.<span class="ident">name</span>.<span class="ident">clone</span>() })
+                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>()
+                .<span class="ident">into</span>(),
+        )
+    }
+
+    <span class="doccomment">/// Return Substs that replace each parameter by a bound variable.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bound_vars</span>(<span class="ident">generic_params</span>: <span class="kw-2">&amp;</span><span class="ident">GenericParams</span>) <span class="op">-&gt;</span> <span class="ident">Substs</span> {
+        <span class="ident">Substs</span>(
+            <span class="ident">generic_params</span>
+                .<span class="ident">params_including_parent</span>()
+                .<span class="ident">into_iter</span>()
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="ident">p</span>.<span class="ident">idx</span>))
+                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>()
+                .<span class="ident">into</span>(),
+        )
+    }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">Substs</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Ty</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
         <span class="ident">Substs</span>(<span class="ident">v</span>.<span class="ident">into</span>())
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">Substs</span> {
+    <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> [<span class="ident">Ty</span>];
+
+    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Ty</span>] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>
     }
 }
 
@@ -673,8 +759,27 @@
 
 <span class="kw">impl</span> <span class="ident">TraitRef</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">self_ty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Ty</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">substs</span>.<span class="number">0</span>[<span class="number">0</span>]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">substs</span>[<span class="number">0</span>]
     }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subst</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">substs</span>: <span class="kw-2">&amp;</span><span class="ident">Substs</span>) <span class="op">-&gt;</span> <span class="ident">TraitRef</span> {
+        <span class="self">self</span>.<span class="ident">substs</span>.<span class="ident">walk_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="op">|</span><span class="ident">ty_mut</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">ty_mut</span>, <span class="ident">Ty</span>::<span class="ident">Unknown</span>);
+            <span class="kw-2">*</span><span class="ident">ty_mut</span> <span class="op">=</span> <span class="ident">ty</span>.<span class="ident">subst</span>(<span class="ident">substs</span>);
+        });
+        <span class="self">self</span>
+    }
+}
+
+<span class="doccomment">/// Basically a claim (currently not validated / checked) that the contained</span>
+<span class="doccomment">/// type / trait ref contains no inference variables; any inference variables it</span>
+<span class="doccomment">/// contained have been replaced by bound variables, and `num_vars` tells us how</span>
+<span class="doccomment">/// many there are. This is used to erase irrelevant differences between types</span>
+<span class="doccomment">/// before using them in queries.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Canonical</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="ident">value</span>: <span class="ident">T</span>,
+    <span class="kw">pub</span> <span class="ident">num_vars</span>: <span class="ident">usize</span>,
 }
 
 <span class="doccomment">/// A function signature as seen by type inference: Several parameter types and</span>
@@ -731,7 +836,7 @@
         <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">ApplicationTy</span> { <span class="ident">ctor</span>, <span class="ident">parameters</span> })
     }
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unit</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
-        <span class="ident">Ty</span>::<span class="ident">apply</span>(<span class="ident">TypeCtor</span>::<span class="ident">Tuple</span>, <span class="ident">Substs</span>::<span class="ident">empty</span>())
+        <span class="ident">Ty</span>::<span class="ident">apply</span>(<span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { <span class="ident">cardinality</span>: <span class="number">0</span> }, <span class="ident">Substs</span>::<span class="ident">empty</span>())
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">walk</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>)) {
@@ -741,7 +846,7 @@
                     <span class="ident">t</span>.<span class="ident">walk</span>(<span class="ident">f</span>);
                 }
             }
-            <span class="ident">Ty</span>::<span class="ident">Param</span> { .. } <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> {}
+            <span class="ident">Ty</span>::<span class="ident">Param</span> { .. } <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> {}
         }
         <span class="ident">f</span>(<span class="self">self</span>);
     }
@@ -751,7 +856,7 @@
             <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">a_ty</span>) <span class="op">=&gt;</span> {
                 <span class="ident">a_ty</span>.<span class="ident">parameters</span>.<span class="ident">walk_mut</span>(<span class="ident">f</span>);
             }
-            <span class="ident">Ty</span>::<span class="ident">Param</span> { .. } <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> {}
+            <span class="ident">Ty</span>::<span class="ident">Param</span> { .. } <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> {}
         }
         <span class="ident">f</span>(<span class="self">self</span>);
     }
@@ -784,7 +889,9 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_tuple</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Substs</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">ApplicationTy</span> { <span class="ident">ctor</span>: <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span>, <span class="ident">parameters</span> }) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">parameters</span>),
+            <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">ApplicationTy</span> { <span class="ident">ctor</span>: <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { .. }, <span class="ident">parameters</span> }) <span class="op">=&gt;</span> {
+                <span class="prelude-val">Some</span>(<span class="ident">parameters</span>)
+            }
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
         }
     }
@@ -812,7 +919,7 @@
     <span class="kw">fn</span> <span class="ident">callable_sig</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">FnSig</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">a_ty</span>) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="ident">a_ty</span>.<span class="ident">ctor</span> {
-                <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">FnSig</span>::<span class="ident">from_fn_ptr_substs</span>(<span class="kw-2">&amp;</span><span class="ident">a_ty</span>.<span class="ident">parameters</span>)),
+                <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> { .. } <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">FnSig</span>::<span class="ident">from_fn_ptr_substs</span>(<span class="kw-2">&amp;</span><span class="ident">a_ty</span>.<span class="ident">parameters</span>)),
                 <span class="ident">TypeCtor</span>::<span class="ident">FnDef</span>(<span class="ident">def</span>) <span class="op">=&gt;</span> {
                     <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">callable_item_signature</span>(<span class="ident">def</span>);
                     <span class="prelude-val">Some</span>(<span class="ident">sig</span>.<span class="ident">subst</span>(<span class="kw-2">&amp;</span><span class="ident">a_ty</span>.<span class="ident">parameters</span>))
@@ -843,12 +950,16 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subst</span>(<span class="self">self</span>, <span class="ident">substs</span>: <span class="kw-2">&amp;</span><span class="ident">Substs</span>) <span class="op">-&gt;</span> <span class="ident">Ty</span> {
         <span class="self">self</span>.<span class="ident">fold</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="op">|</span><span class="ident">ty</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">ty</span> {
             <span class="ident">Ty</span>::<span class="ident">Param</span> { <span class="ident">idx</span>, <span class="ident">name</span> } <span class="op">=&gt;</span> {
-                <span class="kw">if</span> (<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>) <span class="op">&lt;</span> <span class="ident">substs</span>.<span class="number">0</span>.<span class="ident">len</span>() {
-                    <span class="ident">substs</span>.<span class="number">0</span>[<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">clone</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">Ty</span>::<span class="ident">Param</span> { <span class="ident">idx</span>, <span class="ident">name</span> }
-                }
+                <span class="ident">substs</span>.<span class="ident">get</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>).<span class="ident">cloned</span>().<span class="ident">unwrap_or</span>(<span class="ident">Ty</span>::<span class="ident">Param</span> { <span class="ident">idx</span>, <span class="ident">name</span> })
             }
+            <span class="ident">ty</span> <span class="op">=&gt;</span> <span class="ident">ty</span>,
+        })
+    }
+
+    <span class="doccomment">/// Substitutes `Ty::Bound` vars (as opposed to type parameters).</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subst_bound_vars</span>(<span class="self">self</span>, <span class="ident">substs</span>: <span class="kw-2">&amp;</span><span class="ident">Substs</span>) <span class="op">-&gt;</span> <span class="ident">Ty</span> {
+        <span class="self">self</span>.<span class="ident">fold</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="op">|</span><span class="ident">ty</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">ty</span> {
+            <span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="ident">idx</span>) <span class="op">=&gt;</span> <span class="ident">substs</span>.<span class="ident">get</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>).<span class="ident">cloned</span>().<span class="ident">unwrap_or</span>(<span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="ident">idx</span>)),
             <span class="ident">ty</span> <span class="op">=&gt;</span> <span class="ident">ty</span>,
         })
     }
@@ -894,17 +1005,17 @@
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;&amp;{}{}&quot;</span>, <span class="ident">m</span>.<span class="ident">as_keyword_for_ref</span>(), <span class="ident">t</span>.<span class="ident">display</span>(<span class="ident">f</span>.<span class="ident">db</span>))<span class="question-mark">?</span>;
             }
             <span class="ident">TypeCtor</span>::<span class="ident">Never</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;!&quot;</span>)<span class="question-mark">?</span>,
-            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> <span class="op">=&gt;</span> {
+            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { .. } <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">ts</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">parameters</span>;
-                <span class="kw">if</span> <span class="ident">ts</span>.<span class="number">0</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> {
-                    <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;({},)&quot;</span>, <span class="ident">ts</span>.<span class="number">0</span>[<span class="number">0</span>].<span class="ident">display</span>(<span class="ident">f</span>.<span class="ident">db</span>))<span class="question-mark">?</span>;
+                <span class="kw">if</span> <span class="ident">ts</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> {
+                    <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;({},)&quot;</span>, <span class="ident">ts</span>[<span class="number">0</span>].<span class="ident">display</span>(<span class="ident">f</span>.<span class="ident">db</span>))<span class="question-mark">?</span>;
                 } <span class="kw">else</span> {
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;(&quot;</span>)<span class="question-mark">?</span>;
                     <span class="ident">f</span>.<span class="ident">write_joined</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">ts</span>.<span class="number">0</span>, <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;)&quot;</span>)<span class="question-mark">?</span>;
                 }
             }
-            <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> <span class="op">=&gt;</span> {
+            <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> { .. } <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">FnSig</span>::<span class="ident">from_fn_ptr_substs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">parameters</span>);
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;fn(&quot;</span>)<span class="question-mark">?</span>;
                 <span class="ident">f</span>.<span class="ident">write_joined</span>(<span class="ident">sig</span>.<span class="ident">params</span>(), <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
@@ -921,7 +1032,7 @@
                     <span class="ident">CallableDef</span>::<span class="ident">Function</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;fn {}&quot;</span>, <span class="ident">name</span>)<span class="question-mark">?</span>,
                     <span class="ident">CallableDef</span>::<span class="ident">Struct</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">CallableDef</span>::<span class="ident">EnumVariant</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">name</span>)<span class="question-mark">?</span>,
                 }
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">parameters</span>.<span class="number">0</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;&lt;&quot;</span>)<span class="question-mark">?</span>;
                     <span class="ident">f</span>.<span class="ident">write_joined</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">parameters</span>.<span class="number">0</span>, <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;&gt;&quot;</span>)<span class="question-mark">?</span>;
@@ -937,7 +1048,7 @@
                 }
                 .<span class="ident">unwrap_or_else</span>(<span class="ident">Name</span>::<span class="ident">missing</span>);
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">name</span>)<span class="question-mark">?</span>;
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">parameters</span>.<span class="number">0</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;&lt;&quot;</span>)<span class="question-mark">?</span>;
                     <span class="ident">f</span>.<span class="ident">write_joined</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">parameters</span>.<span class="number">0</span>, <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
                     <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;&gt;&quot;</span>)<span class="question-mark">?</span>;
@@ -953,6 +1064,7 @@
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">a_ty</span>) <span class="op">=&gt;</span> <span class="ident">a_ty</span>.<span class="ident">hir_fmt</span>(<span class="ident">f</span>)<span class="question-mark">?</span>,
             <span class="ident">Ty</span>::<span class="ident">Param</span> { <span class="ident">name</span>, .. } <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">name</span>)<span class="question-mark">?</span>,
+            <span class="ident">Ty</span>::<span class="ident">Bound</span>(<span class="ident">idx</span>) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;?{}&quot;</span>, <span class="ident">idx</span>)<span class="question-mark">?</span>,
             <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{{unknown}}&quot;</span>)<span class="question-mark">?</span>,
             <span class="ident">Ty</span>::<span class="ident">Infer</span>(..) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;_&quot;</span>)<span class="question-mark">?</span>,
         }

@@ -1418,6 +1418,18 @@
 <span id="1418">1418</span>
 <span id="1419">1419</span>
 <span id="1420">1420</span>
+<span id="1421">1421</span>
+<span id="1422">1422</span>
+<span id="1423">1423</span>
+<span id="1424">1424</span>
+<span id="1425">1425</span>
+<span id="1426">1426</span>
+<span id="1427">1427</span>
+<span id="1428">1428</span>
+<span id="1429">1429</span>
+<span id="1430">1430</span>
+<span id="1431">1431</span>
+<span id="1432">1432</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type inference, i.e. the process of walking through the code and determining</span>
 <span class="doccomment">//! the type of each expression and pattern.</span>
@@ -1465,8 +1477,11 @@
 };
 <span class="kw">use</span> <span class="kw">super</span>::{
     <span class="ident">Ty</span>, <span class="ident">TypableDef</span>, <span class="ident">Substs</span>, <span class="ident">primitive</span>, <span class="ident">op</span>, <span class="ident">ApplicationTy</span>, <span class="ident">TypeCtor</span>, <span class="ident">CallableDef</span>, <span class="ident">TraitRef</span>,
-    <span class="ident">traits</span>::{ <span class="ident">Solution</span>, <span class="ident">Obligation</span>, <span class="ident">Guidance</span>},
+    <span class="ident">traits</span>::{<span class="ident">Solution</span>, <span class="ident">Obligation</span>, <span class="ident">Guidance</span>},
+    <span class="ident">method_resolution</span>,
 };
+
+<span class="kw">mod</span> <span class="ident">unify</span>;
 
 <span class="doccomment">/// The entry point of type inference.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">infer</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">def</span>: <span class="ident">DefWithBody</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">InferenceResult</span><span class="op">&gt;</span> {
@@ -1742,30 +1757,29 @@
     <span class="kw">fn</span> <span class="ident">resolve_obligations_as_possible</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">obligations</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">obligations</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
         <span class="kw">for</span> <span class="ident">obligation</span> <span class="kw">in</span> <span class="ident">obligations</span> {
-            <span class="comment">// FIXME resolve types in the obligation first</span>
-            <span class="kw">let</span> (<span class="ident">solution</span>, <span class="ident">var_mapping</span>) <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">obligation</span> {
+            <span class="kw">let</span> (<span class="ident">solution</span>, <span class="ident">canonicalized</span>) <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">obligation</span> {
                 <span class="ident">Obligation</span>::<span class="ident">Trait</span>(<span class="ident">tr</span>) <span class="op">=&gt;</span> {
-                    <span class="kw">let</span> (<span class="ident">tr</span>, <span class="ident">var_mapping</span>) <span class="op">=</span> <span class="kw">super</span>::<span class="ident">traits</span>::<span class="ident">canonicalize</span>(<span class="ident">tr</span>.<span class="ident">clone</span>());
-                    (<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">implements</span>(<span class="ident">tr</span>), <span class="ident">var_mapping</span>)
+                    <span class="kw">let</span> <span class="ident">canonicalized</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">canonicalizer</span>().<span class="ident">canonicalize_trait_ref</span>(<span class="ident">tr</span>.<span class="ident">clone</span>());
+                    (
+                        <span class="kw">super</span>::<span class="ident">traits</span>::<span class="ident">implements</span>(
+                            <span class="self">self</span>.<span class="ident">db</span>,
+                            <span class="self">self</span>.<span class="ident">resolver</span>.<span class="ident">krate</span>().<span class="ident">unwrap</span>(),
+                            <span class="ident">canonicalized</span>.<span class="ident">value</span>.<span class="ident">clone</span>(),
+                        ),
+                        <span class="ident">canonicalized</span>,
+                    )
                 }
             };
             <span class="kw">match</span> <span class="ident">solution</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">Solution</span>::<span class="ident">Unique</span>(<span class="ident">substs</span>)) <span class="op">=&gt;</span> {
-                    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">subst</span>) <span class="kw">in</span> <span class="ident">substs</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                        <span class="kw">let</span> <span class="ident">uncanonical</span> <span class="op">=</span> <span class="ident">var_mapping</span>[<span class="ident">i</span>];
-                        <span class="comment">// FIXME the subst may contain type variables, which would need to be mapped back as well</span>
-                        <span class="self">self</span>.<span class="ident">unify</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="ident">InferTy</span>::<span class="ident">TypeVar</span>(<span class="ident">uncanonical</span>)), <span class="ident">subst</span>);
-                    }
+                    <span class="ident">canonicalized</span>.<span class="ident">apply_solution</span>(<span class="self">self</span>, <span class="ident">substs</span>.<span class="number">0</span>);
                 }
                 <span class="prelude-val">Some</span>(<span class="ident">Solution</span>::<span class="ident">Ambig</span>(<span class="ident">Guidance</span>::<span class="ident">Definite</span>(<span class="ident">substs</span>))) <span class="op">=&gt;</span> {
-                    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">subst</span>) <span class="kw">in</span> <span class="ident">substs</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                        <span class="kw">let</span> <span class="ident">uncanonical</span> <span class="op">=</span> <span class="ident">var_mapping</span>[<span class="ident">i</span>];
-                        <span class="comment">// FIXME the subst may contain type variables, which would need to be mapped back as well</span>
-                        <span class="self">self</span>.<span class="ident">unify</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="ident">InferTy</span>::<span class="ident">TypeVar</span>(<span class="ident">uncanonical</span>)), <span class="ident">subst</span>);
-                    }
+                    <span class="ident">canonicalized</span>.<span class="ident">apply_solution</span>(<span class="self">self</span>, <span class="ident">substs</span>.<span class="number">0</span>);
                     <span class="self">self</span>.<span class="ident">obligations</span>.<span class="ident">push</span>(<span class="ident">obligation</span>);
                 }
                 <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+                    <span class="comment">// FIXME use this when trying to resolve everything at the end</span>
                     <span class="self">self</span>.<span class="ident">obligations</span>.<span class="ident">push</span>(<span class="ident">obligation</span>);
                 }
                 <span class="prelude-val">None</span> <span class="op">=&gt;</span> {
@@ -2158,14 +2172,14 @@
                 };
                 <span class="kw">let</span> <span class="ident">expectations_iter</span> <span class="op">=</span> <span class="ident">expectations</span>.<span class="ident">iter</span>().<span class="ident">chain</span>(<span class="ident">repeat</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>::<span class="ident">Unknown</span>));
 
-                <span class="kw">let</span> <span class="ident">inner_tys</span> <span class="op">=</span> <span class="ident">args</span>
+                <span class="kw">let</span> <span class="ident">inner_tys</span>: <span class="ident">Substs</span> <span class="op">=</span> <span class="ident">args</span>
                     .<span class="ident">iter</span>()
                     .<span class="ident">zip</span>(<span class="ident">expectations_iter</span>)
                     .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw-2">&amp;</span><span class="ident">pat</span>, <span class="ident">ty</span>)<span class="op">|</span> <span class="self">self</span>.<span class="ident">infer_pat</span>(<span class="ident">pat</span>, <span class="ident">ty</span>, <span class="ident">default_bm</span>))
                     .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>()
                     .<span class="ident">into</span>();
 
-                <span class="ident">Ty</span>::<span class="ident">apply</span>(<span class="ident">TypeCtor</span>::<span class="ident">Tuple</span>, <span class="ident">Substs</span>(<span class="ident">inner_tys</span>))
+                <span class="ident">Ty</span>::<span class="ident">apply</span>(<span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { <span class="ident">cardinality</span>: <span class="ident">inner_tys</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u16</span> }, <span class="ident">inner_tys</span>)
             }
             <span class="ident">Pat</span>::<span class="ident">Ref</span> { <span class="ident">pat</span>, <span class="ident">mutability</span> } <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">expectation</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">expected</span>.<span class="ident">as_reference</span>() {
@@ -2298,9 +2312,16 @@
         <span class="ident">generic_args</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">GenericArgs</span><span class="op">&gt;</span>,
     ) <span class="op">-&gt;</span> <span class="ident">Ty</span> {
         <span class="kw">let</span> <span class="ident">receiver_ty</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">infer_expr</span>(<span class="ident">receiver</span>, <span class="kw-2">&amp;</span><span class="ident">Expectation</span>::<span class="ident">none</span>());
-        <span class="kw">let</span> <span class="ident">resolved</span> <span class="op">=</span> <span class="ident">receiver_ty</span>.<span class="ident">clone</span>().<span class="ident">lookup_method</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">method_name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resolver</span>);
+        <span class="kw">let</span> <span class="ident">canonicalized_receiver</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">canonicalizer</span>().<span class="ident">canonicalize_ty</span>(<span class="ident">receiver_ty</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">resolved</span> <span class="op">=</span> <span class="ident">method_resolution</span>::<span class="ident">lookup_method</span>(
+            <span class="kw-2">&amp;</span><span class="ident">canonicalized_receiver</span>.<span class="ident">value</span>,
+            <span class="self">self</span>.<span class="ident">db</span>,
+            <span class="ident">method_name</span>,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resolver</span>,
+        );
         <span class="kw">let</span> (<span class="ident">derefed_receiver_ty</span>, <span class="ident">method_ty</span>, <span class="ident">def_generics</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">resolved</span> {
             <span class="prelude-val">Some</span>((<span class="ident">ty</span>, <span class="ident">func</span>)) <span class="op">=&gt;</span> {
+                <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="ident">canonicalized_receiver</span>.<span class="ident">decanonicalize_ty</span>(<span class="ident">ty</span>);
                 <span class="self">self</span>.<span class="ident">write_method_resolution</span>(<span class="ident">tgt_expr</span>, <span class="ident">func</span>);
                 (
                     <span class="ident">ty</span>,
@@ -2485,7 +2506,7 @@
                     .<span class="ident">autoderef</span>(<span class="self">self</span>.<span class="ident">db</span>)
                     .<span class="ident">find_map</span>(<span class="op">|</span><span class="ident">derefed_ty</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">derefed_ty</span> {
                         <span class="ident">Ty</span>::<span class="ident">Apply</span>(<span class="ident">a_ty</span>) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="ident">a_ty</span>.<span class="ident">ctor</span> {
-                            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> <span class="op">=&gt;</span> {
+                            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { .. } <span class="op">=&gt;</span> {
                                 <span class="kw">let</span> <span class="ident">i</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">to_string</span>().<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>().<span class="ident">ok</span>();
                                 <span class="ident">i</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">a_ty</span>.<span class="ident">parameters</span>.<span class="number">0</span>.<span class="ident">get</span>(<span class="ident">i</span>).<span class="ident">cloned</span>())
                             }
@@ -2596,7 +2617,10 @@
                     <span class="ident">ty_vec</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">infer_expr</span>(<span class="kw-2">*</span><span class="ident">arg</span>, <span class="kw-2">&amp;</span><span class="ident">Expectation</span>::<span class="ident">none</span>()));
                 }
 
-                <span class="ident">Ty</span>::<span class="ident">apply</span>(<span class="ident">TypeCtor</span>::<span class="ident">Tuple</span>, <span class="ident">Substs</span>(<span class="ident">ty_vec</span>.<span class="ident">into</span>()))
+                <span class="ident">Ty</span>::<span class="ident">apply</span>(
+                    <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { <span class="ident">cardinality</span>: <span class="ident">ty_vec</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u16</span> },
+                    <span class="ident">Substs</span>(<span class="ident">ty_vec</span>.<span class="ident">into</span>()),
+                )
             }
             <span class="ident">Expr</span>::<span class="ident">Array</span>(<span class="ident">array</span>) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">elem_ty</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">expected</span>.<span class="ident">ty</span> {

@@ -152,8 +152,23 @@
 <span id="152">152</span>
 <span id="153">153</span>
 <span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">SyntaxNode</span>, <span class="ident">TreeArc</span>, <span class="ident">SourceFile</span>, <span class="ident">SmolStr</span>, <span class="ident">ast</span>};
 <span class="kw">use</span> <span class="ident">ra_db</span>::{<span class="ident">SourceDatabase</span>, <span class="ident">salsa</span>};
@@ -163,16 +178,16 @@
     <span class="ident">Function</span>, <span class="ident">FnSignature</span>, <span class="ident">ExprScopes</span>, <span class="ident">TypeAlias</span>,
     <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">StructField</span>,
     <span class="ident">Const</span>, <span class="ident">ConstSignature</span>, <span class="ident">Static</span>,
-    <span class="ident">DefWithBody</span>,
+    <span class="ident">DefWithBody</span>, <span class="ident">Trait</span>,
+    <span class="ident">ids</span>,
     <span class="ident">nameres</span>::{<span class="ident">Namespace</span>, <span class="ident">ImportSourceMap</span>, <span class="ident">RawItems</span>, <span class="ident">CrateDefMap</span>},
-    <span class="ident">ty</span>::{<span class="ident">InferenceResult</span>, <span class="ident">Ty</span>, <span class="ident">method_resolution</span>::<span class="ident">CrateImplBlocks</span>, <span class="ident">TypableDef</span>, <span class="ident">CallableDef</span>, <span class="ident">FnSig</span>},
+    <span class="ident">ty</span>::{<span class="ident">InferenceResult</span>, <span class="ident">Ty</span>, <span class="ident">method_resolution</span>::<span class="ident">CrateImplBlocks</span>, <span class="ident">TypableDef</span>, <span class="ident">CallableDef</span>, <span class="ident">FnSig</span>, <span class="ident">TypeCtor</span>},
     <span class="ident">adt</span>::{<span class="ident">StructData</span>, <span class="ident">EnumData</span>},
-    <span class="ident">impl_block</span>::{<span class="ident">ModuleImplBlocks</span>, <span class="ident">ImplSourceMap</span>},
+    <span class="ident">impl_block</span>::{<span class="ident">ModuleImplBlocks</span>, <span class="ident">ImplSourceMap</span>, <span class="ident">ImplBlock</span>},
     <span class="ident">generics</span>::{<span class="ident">GenericParams</span>, <span class="ident">GenericDef</span>},
     <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>,
-    <span class="ident">traits</span>::<span class="ident">TraitData</span>, <span class="ident">Trait</span>, <span class="ident">ty</span>::<span class="ident">TraitRef</span>,
+    <span class="ident">traits</span>::<span class="ident">TraitData</span>,
     <span class="ident">lang_item</span>::{<span class="ident">LangItems</span>, <span class="ident">LangItemTarget</span>},
-    <span class="ident">ids</span>
 };
 
 <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">query_group</span>(<span class="ident">DefDatabaseStorage</span>)]</span>
@@ -193,6 +208,12 @@
     <span class="kw">fn</span> <span class="ident">intern_trait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">loc</span>: <span class="ident">ids</span>::<span class="ident">ItemLoc</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">TraitDef</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">ids</span>::<span class="ident">TraitId</span>;
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">interned</span>]</span>
     <span class="kw">fn</span> <span class="ident">intern_type_alias</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">loc</span>: <span class="ident">ids</span>::<span class="ident">ItemLoc</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">TypeAliasDef</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">ids</span>::<span class="ident">TypeAliasId</span>;
+
+    <span class="comment">// Interned IDs for Chalk integration</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">interned</span>]</span>
+    <span class="kw">fn</span> <span class="ident">intern_type_ctor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">type_ctor</span>: <span class="ident">TypeCtor</span>) <span class="op">-&gt;</span> <span class="ident">ids</span>::<span class="ident">TypeCtorId</span>;
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">interned</span>]</span>
+    <span class="kw">fn</span> <span class="ident">intern_impl_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">impl_block</span>: <span class="ident">ImplBlock</span>) <span class="op">-&gt;</span> <span class="ident">ids</span>::<span class="ident">GlobalImplId</span>;
 
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ids</span>::<span class="ident">macro_def_query</span>)]</span>
     <span class="kw">fn</span> <span class="ident">macro_def</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">macro_id</span>: <span class="ident">MacroDefId</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">mbe</span>::<span class="ident">MacroRules</span><span class="op">&gt;&gt;</span>;
@@ -299,8 +320,17 @@
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">method_resolution</span>::<span class="ident">CrateImplBlocks</span>::<span class="ident">impls_in_crate_query</span>)]</span>
     <span class="kw">fn</span> <span class="ident">impls_in_crate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CrateImplBlocks</span><span class="op">&gt;</span>;
 
-    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">implements</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">implements</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trait_ref</span>: <span class="ident">TraitRef</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">Solution</span><span class="op">&gt;</span>;
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">impls_for_trait</span>)]</span>
+    <span class="kw">fn</span> <span class="ident">impls_for_trait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>, <span class="ident">trait_</span>: <span class="ident">Trait</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span>[<span class="ident">ImplBlock</span>]<span class="op">&gt;</span>;
+
+    <span class="doccomment">/// This provides the Chalk trait solver instance. Because Chalk always</span>
+    <span class="doccomment">/// works from a specific crate, this query is keyed on the crate; and</span>
+    <span class="doccomment">/// because Chalk does its own internal caching, the solver is wrapped in a</span>
+    <span class="doccomment">/// Mutex and the query is marked volatile, to make sure the cached state is</span>
+    <span class="doccomment">/// thrown away when input facts change.</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">solver</span>)]</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">volatile</span>]</span>
+    <span class="kw">fn</span> <span class="ident">solver</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">Solver</span><span class="op">&gt;&gt;</span>;
 }
 
 <span class="attribute">#[<span class="ident">test</span>]</span>

@@ -169,6 +169,15 @@
 <span id="169">169</span>
 <span id="170">170</span>
 <span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Many kinds of items or constructs can have generic parameters: functions,</span>
 <span class="doccomment">//! structs, impls, traits, etc. This module provides a common HIR for these</span>
@@ -181,7 +190,7 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">db</span>::<span class="ident">DefDatabase</span>,
-    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>, <span class="ident">Container</span>, <span class="ident">path</span>::<span class="ident">Path</span>, <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>
+    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>, <span class="ident">Container</span>, <span class="ident">path</span>::<span class="ident">Path</span>, <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>, <span class="ident">AdtDef</span>
 };
 
 <span class="doccomment">/// Data about a generic parameter (to a function, struct, impl, ...).</span>
@@ -325,6 +334,15 @@
         <span class="kw">match</span> <span class="ident">c</span> {
             <span class="ident">Container</span>::<span class="ident">Trait</span>(<span class="ident">trait_</span>) <span class="op">=&gt;</span> <span class="ident">trait_</span>.<span class="ident">into</span>(),
             <span class="ident">Container</span>::<span class="ident">ImplBlock</span>(<span class="ident">impl_block</span>) <span class="op">=&gt;</span> <span class="ident">impl_block</span>.<span class="ident">into</span>(),
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">adt</span>::<span class="ident">AdtDef</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GenericDef</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">adt</span>: <span class="kw">crate</span>::<span class="ident">adt</span>::<span class="ident">AdtDef</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+        <span class="kw">match</span> <span class="ident">adt</span> {
+            <span class="ident">AdtDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">into</span>(),
+            <span class="ident">AdtDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">into</span>(),
         }
     }
 }
