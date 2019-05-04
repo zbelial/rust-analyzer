@@ -450,6 +450,7 @@
 <span id="450">450</span>
 <span id="451">451</span>
 <span id="452">452</span>
+<span id="453">453</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">lsp_types</span>::{
     <span class="self">self</span>, <span class="ident">CreateFile</span>, <span class="ident">Documentation</span>, <span class="ident">DocumentChangeOperation</span>, <span class="ident">DocumentChanges</span>, <span class="ident">Location</span>, <span class="ident">LocationLink</span>,
@@ -526,6 +527,7 @@
             <span class="ident">CompletionItemKind</span>::<span class="ident">Static</span> <span class="op">=&gt;</span> <span class="ident">Value</span>,
             <span class="ident">CompletionItemKind</span>::<span class="ident">Method</span> <span class="op">=&gt;</span> <span class="ident">Method</span>,
             <span class="ident">CompletionItemKind</span>::<span class="ident">TypeParam</span> <span class="op">=&gt;</span> <span class="ident">TypeParameter</span>,
+            <span class="ident">CompletionItemKind</span>::<span class="ident">Macro</span> <span class="op">=&gt;</span> <span class="ident">Method</span>,
         }
     }
 }
