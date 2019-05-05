@@ -312,6 +312,8 @@
 <span id="312">312</span>
 <span id="313">313</span>
 <span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 
@@ -323,6 +325,7 @@
     <span class="ident">ast</span>::{<span class="self">self</span>, <span class="ident">AstNode</span>},
 };
 <span class="kw">use</span> <span class="ident">ra_text_edit</span>::{<span class="ident">TextEdit</span>, <span class="ident">TextEditBuilder</span>};
+<span class="kw">use</span> <span class="ident">ra_prof</span>::<span class="ident">profile</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Diagnostic</span>, <span class="ident">FileId</span>, <span class="ident">FileSystemEdit</span>, <span class="ident">SourceChange</span>, <span class="ident">SourceFileEdit</span>, <span class="ident">db</span>::<span class="ident">RootDatabase</span>};
 
@@ -333,6 +336,7 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">diagnostics</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="ident">RootDatabase</span>, <span class="ident">file_id</span>: <span class="ident">FileId</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Diagnostic</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">_p</span> <span class="op">=</span> <span class="ident">profile</span>(<span class="string">&quot;diagnostics&quot;</span>);
     <span class="kw">let</span> <span class="ident">source_file</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">parse</span>(<span class="ident">file_id</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
