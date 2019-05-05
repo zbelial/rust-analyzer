@@ -611,6 +611,9 @@
 <span id="611">611</span>
 <span id="612">612</span>
 <span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/// This module takes a (parsed) definition of `macro_rules` invocation, a</span>
 <span class="doccomment">/// `tt::TokenTree` representing an argument of macro invocation, and produces a</span>
@@ -789,6 +792,9 @@
                 <span class="ident">res</span>.<span class="ident">push</span>(<span class="ident">text</span>.<span class="ident">clone</span>());
             }
             <span class="kw">crate</span>::<span class="ident">TokenTree</span>::<span class="ident">Subtree</span>(<span class="ident">subtree</span>) <span class="op">=&gt;</span> {
+                <span class="ident">res</span>.<span class="ident">extend</span>(<span class="ident">collect_vars</span>(<span class="ident">subtree</span>));
+            }
+            <span class="kw">crate</span>::<span class="ident">TokenTree</span>::<span class="ident">Repeat</span>(<span class="kw">crate</span>::<span class="ident">Repeat</span> { <span class="ident">subtree</span>, .. }) <span class="op">=&gt;</span> {
                 <span class="ident">res</span>.<span class="ident">extend</span>(<span class="ident">collect_vars</span>(<span class="ident">subtree</span>));
             }
             <span class="kw">_</span> <span class="op">=&gt;</span> {}
