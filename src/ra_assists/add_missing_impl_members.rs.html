@@ -299,7 +299,6 @@
 <span id="299">299</span>
 <span id="300">300</span>
 <span id="301">301</span>
-<span id="302">302</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Assist</span>, <span class="ident">AssistId</span>, <span class="ident">AssistCtx</span>, <span class="ident">ast_editor</span>::{<span class="ident">AstEditor</span>, <span class="ident">AstBuilder</span>}};
 
@@ -356,11 +355,10 @@
             <span class="ident">trait_def</span>.<span class="ident">syntax</span>().<span class="ident">descendants</span>().<span class="ident">find_map</span>(<span class="ident">ast</span>::<span class="ident">ItemList</span>::<span class="ident">cast</span>)<span class="question-mark">?</span>.<span class="ident">impl_items</span>();
         <span class="kw">let</span> <span class="ident">impl_items</span> <span class="op">=</span> <span class="ident">impl_item_list</span>.<span class="ident">impl_items</span>();
 
-        <span class="kw">let</span> <span class="ident">trait_fns</span> <span class="op">=</span> <span class="ident">trait_items</span>.<span class="ident">map</span>(<span class="ident">ImplItem</span>::<span class="ident">kind</span>).<span class="ident">filter_map</span>(<span class="ident">fn_def_opt</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>();
+        <span class="kw">let</span> <span class="ident">trait_fns</span> <span class="op">=</span> <span class="ident">trait_items</span>.<span class="ident">map</span>(<span class="ident">ImplItem</span>::<span class="ident">kind</span>).<span class="ident">filter_map</span>(<span class="ident">fn_def_opt</span>);
         <span class="kw">let</span> <span class="ident">impl_fns</span> <span class="op">=</span> <span class="ident">impl_items</span>.<span class="ident">map</span>(<span class="ident">ImplItem</span>::<span class="ident">kind</span>).<span class="ident">filter_map</span>(<span class="ident">fn_def_opt</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>();
 
         <span class="ident">trait_fns</span>
-            .<span class="ident">into_iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">def_name</span>(<span class="ident">t</span>).<span class="ident">is_some</span>())
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">mode</span> {
                 <span class="ident">AddMissingImplMembersMode</span>::<span class="ident">DefaultMethodsOnly</span> <span class="op">=&gt;</span> <span class="ident">t</span>.<span class="ident">body</span>().<span class="ident">is_some</span>(),
