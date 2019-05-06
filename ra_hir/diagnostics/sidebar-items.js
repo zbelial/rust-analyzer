@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["DiagnosticSink",""],["NoSuchField",""],["UnresolvedModule",""]],"trait":[["Diagnostic","Diagnostic defines hir API for errors and warnings."]]});
+initSidebarItems({"struct":[["DiagnosticSink",""],["MissingFields",""],["NoSuchField",""],["UnresolvedModule",""]],"trait":[["Diagnostic","Diagnostic defines hir API for errors and warnings."]]});

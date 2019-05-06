@@ -788,6 +788,9 @@
 <span id="788">788</span>
 <span id="789">789</span>
 <span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -799,7 +802,7 @@
     <span class="ident">HirDatabase</span>, <span class="ident">DefDatabase</span>,
     <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>,
     <span class="ident">nameres</span>::{<span class="ident">ModuleScope</span>, <span class="ident">Namespace</span>, <span class="ident">ImportId</span>, <span class="ident">CrateModuleId</span>},
-    <span class="ident">expr</span>::{<span class="ident">Body</span>, <span class="ident">BodySourceMap</span>},
+    <span class="ident">expr</span>::{<span class="ident">Body</span>, <span class="ident">BodySourceMap</span>, <span class="ident">validation</span>::<span class="ident">ExprValidator</span>},
     <span class="ident">ty</span>::{ <span class="ident">TraitRef</span>, <span class="ident">InferenceResult</span>},
     <span class="ident">adt</span>::{<span class="ident">EnumVariantId</span>, <span class="ident">StructFieldId</span>, <span class="ident">VariantDef</span>},
     <span class="ident">generics</span>::<span class="ident">HasGenericParams</span>,
@@ -807,7 +810,7 @@
     <span class="ident">ids</span>::{<span class="ident">FunctionId</span>, <span class="ident">StructId</span>, <span class="ident">EnumId</span>, <span class="ident">AstItemDef</span>, <span class="ident">ConstId</span>, <span class="ident">StaticId</span>, <span class="ident">TraitId</span>, <span class="ident">TypeAliasId</span>},
     <span class="ident">impl_block</span>::<span class="ident">ImplBlock</span>,
     <span class="ident">resolve</span>::<span class="ident">Resolver</span>,
-    <span class="ident">diagnostics</span>::<span class="ident">DiagnosticSink</span>,
+    <span class="ident">diagnostics</span>::{<span class="ident">DiagnosticSink</span>},
     <span class="ident">traits</span>::{<span class="ident">TraitItem</span>, <span class="ident">TraitData</span>},
 };
 
@@ -1222,8 +1225,8 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DefWithBody</span> {
     <span class="ident">Function</span>(<span class="ident">Function</span>),
-    <span class="ident">Const</span>(<span class="ident">Const</span>),
     <span class="ident">Static</span>(<span class="ident">Static</span>),
+    <span class="ident">Const</span>(<span class="ident">Const</span>),
 }
 
 <span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">DefWithBody</span>: <span class="ident">Function</span>, <span class="ident">Const</span>, <span class="ident">Static</span>);
@@ -1353,7 +1356,10 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">diagnostics</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">sink</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">DiagnosticSink</span>) {
-        <span class="self">self</span>.<span class="ident">infer</span>(<span class="ident">db</span>).<span class="ident">add_diagnostics</span>(<span class="ident">db</span>, <span class="kw-2">*</span><span class="self">self</span>, <span class="ident">sink</span>);
+        <span class="kw">let</span> <span class="ident">infer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">infer</span>(<span class="ident">db</span>);
+        <span class="ident">infer</span>.<span class="ident">add_diagnostics</span>(<span class="ident">db</span>, <span class="kw-2">*</span><span class="self">self</span>, <span class="ident">sink</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">validator</span> <span class="op">=</span> <span class="ident">ExprValidator</span>::<span class="ident">new</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">infer</span>, <span class="ident">sink</span>);
+        <span class="ident">validator</span>.<span class="ident">validate_body</span>(<span class="ident">db</span>);
     }
 }
 

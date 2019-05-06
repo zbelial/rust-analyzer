@@ -1028,6 +1028,10 @@
 <span id="1028">1028</span>
 <span id="1029">1029</span>
 <span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Index</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -1050,6 +1054,7 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">scope</span>::<span class="ident">ExprScopes</span>;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">scope</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">validation</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExprId</span>(<span class="ident">RawId</span>);
@@ -1701,8 +1706,9 @@
             <span class="ident">ast</span>::<span class="ident">ExprKind</span>::<span class="ident">StructLit</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">path</span>().<span class="ident">and_then</span>(<span class="ident">Path</span>::<span class="ident">from_ast</span>);
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">field_ptrs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-                <span class="kw">let</span> <span class="ident">fields</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">nfl</span>) <span class="op">=</span> <span class="ident">e</span>.<span class="ident">named_field_list</span>() {
-                    <span class="ident">nfl</span>.<span class="ident">fields</span>()
+                <span class="kw">let</span> <span class="ident">struct_lit</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">nfl</span>) <span class="op">=</span> <span class="ident">e</span>.<span class="ident">named_field_list</span>() {
+                    <span class="kw">let</span> <span class="ident">fields</span> <span class="op">=</span> <span class="ident">nfl</span>
+                        .<span class="ident">fields</span>()
                         .<span class="ident">inspect</span>(<span class="op">|</span><span class="ident">field</span><span class="op">|</span> <span class="ident">field_ptrs</span>.<span class="ident">push</span>(<span class="ident">AstPtr</span>::<span class="ident">new</span>(<span class="kw-2">*</span><span class="ident">field</span>)))
                         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">field</span><span class="op">|</span> <span class="ident">StructLitField</span> {
                             <span class="ident">name</span>: <span class="ident">field</span>
@@ -1725,12 +1731,14 @@
                                 <span class="self">self</span>.<span class="ident">exprs</span>.<span class="ident">alloc</span>(<span class="ident">Expr</span>::<span class="ident">Missing</span>)
                             },
                         })
-                        .<span class="ident">collect</span>()
+                        .<span class="ident">collect</span>();
+                    <span class="kw">let</span> <span class="ident">spread</span> <span class="op">=</span> <span class="ident">nfl</span>.<span class="ident">spread</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">collect_expr</span>(<span class="ident">s</span>));
+                    <span class="ident">Expr</span>::<span class="ident">StructLit</span> { <span class="ident">path</span>, <span class="ident">fields</span>, <span class="ident">spread</span> }
                 } <span class="kw">else</span> {
-                    <span class="ident">Vec</span>::<span class="ident">new</span>()
+                    <span class="ident">Expr</span>::<span class="ident">StructLit</span> { <span class="ident">path</span>, <span class="ident">fields</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="ident">spread</span>: <span class="prelude-val">None</span> }
                 };
-                <span class="kw">let</span> <span class="ident">spread</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">spread</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">collect_expr</span>(<span class="ident">s</span>));
-                <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">alloc_expr</span>(<span class="ident">Expr</span>::<span class="ident">StructLit</span> { <span class="ident">path</span>, <span class="ident">fields</span>, <span class="ident">spread</span> }, <span class="ident">syntax_ptr</span>);
+
+                <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">alloc_expr</span>(<span class="ident">struct_lit</span>, <span class="ident">syntax_ptr</span>);
                 <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">ptr</span>) <span class="kw">in</span> <span class="ident">field_ptrs</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
                     <span class="self">self</span>.<span class="ident">source_map</span>.<span class="ident">field_map</span>.<span class="ident">insert</span>((<span class="ident">res</span>, <span class="ident">i</span>), <span class="ident">ptr</span>);
                 }
