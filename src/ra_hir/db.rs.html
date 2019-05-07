@@ -167,6 +167,13 @@
 <span id="167">167</span>
 <span id="168">168</span>
 <span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
@@ -331,6 +338,13 @@
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">solver</span>)]</span>
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">volatile</span>]</span>
     <span class="kw">fn</span> <span class="ident">solver</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">Solver</span><span class="op">&gt;&gt;</span>;
+
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">implements</span>)]</span>
+    <span class="kw">fn</span> <span class="ident">implements</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">krate</span>: <span class="ident">Crate</span>,
+        <span class="ident">goal</span>: <span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">Canonical</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">TraitRef</span><span class="op">&gt;</span>,
+    ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">Solution</span><span class="op">&gt;</span>;
 }
 
 <span class="attribute">#[<span class="ident">test</span>]</span>
