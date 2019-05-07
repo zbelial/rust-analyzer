@@ -227,18 +227,18 @@
 <span id="227">227</span>
 <span id="228">228</span>
 <span id="229">229</span>
-<span id="230">230</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">mem</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::{<span class="ident">stderr</span>, <span class="ident">Write</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">repeat</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashSet</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">default</span>::<span class="ident">Default</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">FromIterator</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">RwLock</span>, <span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>}};
-<span class="kw">use</span> <span class="ident">lazy_static</span>::<span class="ident">lazy_static</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">cell</span>::<span class="ident">RefCell</span>,
+    <span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>},
+    <span class="ident">mem</span>,
+    <span class="ident">io</span>::{<span class="ident">stderr</span>, <span class="ident">Write</span>},
+    <span class="ident">iter</span>::<span class="ident">repeat</span>,
+    <span class="ident">collections</span>::<span class="ident">HashSet</span>,
+    <span class="ident">sync</span>::{<span class="ident">RwLock</span>, <span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>}},
+};
+
+<span class="kw">use</span> <span class="ident">once_cell</span>::<span class="ident">sync</span>::<span class="ident">Lazy</span>;
 
 <span class="doccomment">/// Set profiling filter. It specifies descriptions allowed to profile.</span>
 <span class="doccomment">/// This is helpful when call stack has too many nested profiling scopes.</span>
@@ -252,7 +252,7 @@
 <span class="doccomment">/// ```</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_filter</span>(<span class="ident">f</span>: <span class="ident">Filter</span>) {
     <span class="ident">PROFILING_ENABLED</span>.<span class="ident">store</span>(<span class="ident">f</span>.<span class="ident">depth</span> <span class="op">&gt;</span> <span class="number">0</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
-    <span class="kw">let</span> <span class="ident">set</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">from_iter</span>(<span class="ident">f</span>.<span class="ident">allowed</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
+    <span class="kw">let</span> <span class="ident">set</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">allowed</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old</span> <span class="op">=</span> <span class="ident">FILTER</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
     <span class="kw">let</span> <span class="ident">filter_data</span> <span class="op">=</span> <span class="ident">FilterData</span> {
         <span class="ident">depth</span>: <span class="ident">f</span>.<span class="ident">depth</span>,
@@ -392,9 +392,7 @@
 
 <span class="kw">static</span> <span class="ident">PROFILING_ENABLED</span>: <span class="ident">AtomicBool</span> <span class="op">=</span> <span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">false</span>);
 
-<span class="macro">lazy_static</span><span class="macro">!</span> {
-    <span class="kw">static</span> <span class="kw-2">ref</span> <span class="ident">FILTER</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">FilterData</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">Default</span>::<span class="ident">default</span>());
-}
+<span class="kw">static</span> <span class="ident">FILTER</span>: <span class="ident">Lazy</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">FilterData</span><span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="ident">Lazy</span>::<span class="ident">new</span>(<span class="ident">Default</span>::<span class="ident">default</span>);
 
 <span class="macro">thread_local</span><span class="macro">!</span>(<span class="kw">static</span> <span class="ident">PROFILE_STACK</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">ProfileStack</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">ProfileStack</span>::<span class="ident">new</span>()));
 
