@@ -133,26 +133,15 @@
 <span id="133">133</span>
 <span id="134">134</span>
 <span id="135">135</span>
-<span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
-<span id="142">142</span>
-<span id="143">143</span>
-<span id="144">144</span>
-<span id="145">145</span>
-<span id="146">146</span>
-<span id="147">147</span>
-<span id="148">148</span>
-<span id="149">149</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 
 <span class="kw">use</span> <span class="ident">ra_parser</span>::<span class="ident">ParseError</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">TextRange</span>, <span class="ident">TextUnit</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">TextRange</span>, <span class="ident">TextUnit</span>,
+    <span class="ident">validation</span>::<span class="ident">EscapeError</span>,
+};
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SyntaxError</span> {
@@ -217,32 +206,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SyntaxErrorKind</span> {
     <span class="ident">ParseError</span>(<span class="ident">ParseError</span>),
-    <span class="ident">UnescapedCodepoint</span>,
-    <span class="ident">EmptyChar</span>,
-    <span class="ident">UnclosedChar</span>,
-    <span class="ident">OverlongChar</span>,
-    <span class="ident">EmptyByte</span>,
-    <span class="ident">UnclosedByte</span>,
-    <span class="ident">OverlongByte</span>,
-    <span class="ident">ByteOutOfRange</span>,
-    <span class="ident">UnescapedByte</span>,
-    <span class="ident">EmptyByteEscape</span>,
-    <span class="ident">InvalidByteEscape</span>,
-    <span class="ident">TooShortByteCodeEscape</span>,
-    <span class="ident">MalformedByteCodeEscape</span>,
-    <span class="ident">UnicodeEscapeForbidden</span>,
-    <span class="ident">EmptyAsciiEscape</span>,
-    <span class="ident">InvalidAsciiEscape</span>,
-    <span class="ident">TooShortAsciiCodeEscape</span>,
-    <span class="ident">AsciiCodeEscapeOutOfRange</span>,
-    <span class="ident">MalformedAsciiCodeEscape</span>,
-    <span class="ident">UnclosedUnicodeEscape</span>,
-    <span class="ident">MalformedUnicodeEscape</span>,
-    <span class="ident">EmptyUnicodeEcape</span>,
-    <span class="ident">OverlongUnicodeEscape</span>,
-    <span class="ident">UnicodeEscapeOutOfRange</span>,
-    <span class="ident">UnclosedString</span>,
-    <span class="ident">InvalidSuffix</span>,
+    <span class="ident">EscapeError</span>(<span class="ident">EscapeError</span>),
     <span class="ident">InvalidBlockAttr</span>,
     <span class="ident">InvalidMatchInnerAttr</span>,
     <span class="ident">InvalidTupleIndexFormat</span>,
@@ -252,38 +216,6 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="kw">use</span> <span class="self">self</span>::<span class="ident">SyntaxErrorKind</span>::<span class="kw-2">*</span>;
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">UnescapedCodepoint</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;This codepoint should always be escaped&quot;</span>),
-            <span class="ident">EmptyAsciiEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Empty escape sequence&quot;</span>),
-            <span class="ident">InvalidAsciiEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Invalid escape sequence&quot;</span>),
-            <span class="ident">EmptyChar</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Empty char literal&quot;</span>),
-            <span class="ident">UnclosedChar</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unclosed char literal&quot;</span>),
-            <span class="ident">OverlongChar</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Char literal should be one character long&quot;</span>),
-            <span class="ident">EmptyByte</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Empty byte literal&quot;</span>),
-            <span class="ident">UnclosedByte</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unclosed byte literal&quot;</span>),
-            <span class="ident">OverlongByte</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Byte literal should be one character long&quot;</span>),
-            <span class="ident">ByteOutOfRange</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Byte should be a valid ASCII character&quot;</span>),
-            <span class="ident">UnescapedByte</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;This byte should always be escaped&quot;</span>),
-            <span class="ident">EmptyByteEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Empty escape sequence&quot;</span>),
-            <span class="ident">InvalidByteEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Invalid escape sequence&quot;</span>),
-            <span class="ident">TooShortByteCodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Escape sequence should have two digits&quot;</span>),
-            <span class="ident">MalformedByteCodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Escape sequence should be a hexadecimal number&quot;</span>),
-            <span class="ident">UnicodeEscapeForbidden</span> <span class="op">=&gt;</span> {
-                <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unicode escapes are not allowed in byte literals or byte strings&quot;</span>)
-            }
-            <span class="ident">TooShortAsciiCodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Escape sequence should have two digits&quot;</span>),
-            <span class="ident">AsciiCodeEscapeOutOfRange</span> <span class="op">=&gt;</span> {
-                <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Escape sequence should be between \\x00 and \\x7F&quot;</span>)
-            }
-            <span class="ident">MalformedAsciiCodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Escape sequence should be a hexadecimal number&quot;</span>),
-            <span class="ident">UnclosedUnicodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Missing `}}`&quot;</span>),
-            <span class="ident">MalformedUnicodeEscape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Malformed unicode escape sequence&quot;</span>),
-            <span class="ident">EmptyUnicodeEcape</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Empty unicode escape sequence&quot;</span>),
-            <span class="ident">OverlongUnicodeEscape</span> <span class="op">=&gt;</span> {
-                <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unicode escape sequence should have at most 6 digits&quot;</span>)
-            }
-            <span class="ident">UnicodeEscapeOutOfRange</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unicode escape code should be at most 0x10FFFF&quot;</span>),
-            <span class="ident">UnclosedString</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Unclosed string literal&quot;</span>),
-            <span class="ident">InvalidSuffix</span> <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Invalid literal suffix&quot;</span>),
             <span class="ident">InvalidBlockAttr</span> <span class="op">=&gt;</span> {
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;A block in this position cannot accept inner attributes&quot;</span>)
             }
@@ -294,7 +226,47 @@
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Tuple (struct) field access is only allowed through decimal integers with no underscores or suffix&quot;</span>)
             }
             <span class="ident">ParseError</span>(<span class="ident">msg</span>) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">msg</span>.<span class="number">0</span>),
+            <span class="ident">EscapeError</span>(<span class="ident">err</span>) <span class="op">=&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">err</span>),
         }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">EscapeError</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">EscapeError</span>::<span class="ident">ZeroChars</span> <span class="op">=&gt;</span> <span class="string">&quot;Empty literal&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">MoreThanOneChar</span> <span class="op">=&gt;</span> <span class="string">&quot;Literal should be one character long&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">LoneSlash</span> <span class="op">=&gt;</span> <span class="string">&quot;Character must be escaped: &#39;\\&#39;&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">InvalidEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Invalid escape sequence&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">BareCarriageReturn</span> <span class="op">=&gt;</span> <span class="string">&quot;Character must be escaped: &#39;\r&#39;&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">EscapeOnlyChar</span> <span class="op">=&gt;</span> <span class="string">&quot;Character must be escaped&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">TooShortHexEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Escape sequence should have two digits&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">InvalidCharInHexEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Escape sequence should be a hexadecimal number&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">OutOfRangeHexEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Escape sequence should be ASCII&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">NoBraceInUnicodeEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Invalid escape sequence&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">InvalidCharInUnicodeEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Invalid escape sequence&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">EmptyUnicodeEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Invalid escape sequence&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">UnclosedUnicodeEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Missing &#39;}&#39;&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">LeadingUnderscoreUnicodeEscape</span> <span class="op">=&gt;</span> <span class="string">&quot;Invalid escape sequence&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">OverlongUnicodeEscape</span> <span class="op">=&gt;</span> {
+                <span class="string">&quot;Unicode escape sequence should have at most 6 digits&quot;</span>
+            }
+            <span class="ident">EscapeError</span>::<span class="ident">LoneSurrogateUnicodeEscape</span> <span class="op">=&gt;</span> {
+                <span class="string">&quot;Unicode escape code should not be a surrogate&quot;</span>
+            }
+            <span class="ident">EscapeError</span>::<span class="ident">OutOfRangeUnicodeEscape</span> <span class="op">=&gt;</span> {
+                <span class="string">&quot;Unicode escape code should be at most 0x10FFFF&quot;</span>
+            }
+            <span class="ident">EscapeError</span>::<span class="ident">UnicodeEscapeInByte</span> <span class="op">=&gt;</span> <span class="string">&quot;Unicode escapes are not allowed in bytes&quot;</span>,
+            <span class="ident">EscapeError</span>::<span class="ident">NonAsciiCharInByte</span> <span class="op">=&gt;</span> <span class="string">&quot;Non ASCII characters are not allowed in bytes&quot;</span>,
+        };
+        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">msg</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">EscapeError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SyntaxErrorKind</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">EscapeError</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+        <span class="ident">SyntaxErrorKind</span>::<span class="ident">EscapeError</span>(<span class="ident">err</span>)
     }
 }
 </pre></div>
