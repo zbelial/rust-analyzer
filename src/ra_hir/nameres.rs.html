@@ -773,8 +773,8 @@
         (<span class="ident">res</span>.<span class="ident">resolved_def</span>, <span class="ident">res</span>.<span class="ident">segment_index</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">find_macro</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">Name</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">MacroDefId</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">public_macros</span>.<span class="ident">get</span>(<span class="ident">name</span>).<span class="ident">or</span>(<span class="self">self</span>.<span class="ident">local_macros</span>.<span class="ident">get</span>(<span class="ident">name</span>))
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">find_macro</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">Name</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MacroDefId</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">public_macros</span>.<span class="ident">get</span>(<span class="ident">name</span>).<span class="ident">or</span>(<span class="self">self</span>.<span class="ident">local_macros</span>.<span class="ident">get</span>(<span class="ident">name</span>)).<span class="ident">map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">it</span>)
     }
 
     <span class="comment">// Returns Yes if we are sure that additions to `ItemMap` wouldn&#39;t change</span>
