@@ -331,6 +331,114 @@
 <span id="331">331</span>
 <span id="332">332</span>
 <span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Conversion code from/to Chalk.</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -340,14 +448,21 @@
 <span class="kw">use</span> <span class="ident">chalk_ir</span>::{<span class="ident">TypeId</span>, <span class="ident">ImplId</span>, <span class="ident">TypeKindId</span>, <span class="ident">ProjectionTy</span>, <span class="ident">Parameter</span>, <span class="ident">Identifier</span>, <span class="ident">cast</span>::<span class="ident">Cast</span>, <span class="ident">PlaceholderIndex</span>, <span class="ident">UniverseIndex</span>, <span class="ident">TypeName</span>};
 <span class="kw">use</span> <span class="ident">chalk_rust_ir</span>::{<span class="ident">AssociatedTyDatum</span>, <span class="ident">TraitDatum</span>, <span class="ident">StructDatum</span>, <span class="ident">ImplDatum</span>};
 
+<span class="kw">use</span> <span class="ident">test_utils</span>::<span class="ident">tested_by</span>;
 <span class="kw">use</span> <span class="ident">ra_db</span>::<span class="ident">salsa</span>::{<span class="ident">InternId</span>, <span class="ident">InternKey</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">Trait</span>, <span class="ident">HasGenericParams</span>, <span class="ident">ImplBlock</span>,
     <span class="ident">db</span>::<span class="ident">HirDatabase</span>,
-    <span class="ident">ty</span>::{<span class="ident">TraitRef</span>, <span class="ident">Ty</span>, <span class="ident">ApplicationTy</span>, <span class="ident">TypeCtor</span>, <span class="ident">Substs</span>},
+    <span class="ident">ty</span>::{<span class="ident">TraitRef</span>, <span class="ident">Ty</span>, <span class="ident">ApplicationTy</span>, <span class="ident">TypeCtor</span>, <span class="ident">Substs</span>, <span class="ident">GenericPredicate</span>, <span class="ident">CallableDef</span>},
+    <span class="ident">ty</span>::<span class="ident">display</span>::<span class="ident">HirDisplay</span>,
+    <span class="ident">generics</span>::<span class="ident">GenericDef</span>,
 };
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">ChalkContext</span>;
+
+<span class="doccomment">/// This represents a trait whose name we could not resolve.</span>
+<span class="kw">const</span> <span class="ident">UNKNOWN_TRAIT</span>: <span class="ident">chalk_ir</span>::<span class="ident">TraitId</span> <span class="op">=</span>
+    <span class="ident">chalk_ir</span>::<span class="ident">TraitId</span>(<span class="ident">chalk_ir</span>::<span class="ident">RawId</span> { <span class="ident">index</span>: <span class="ident">u32</span>::<span class="ident">max_value</span>() });
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">trait</span> <span class="ident">ToChalk</span> {
     <span class="kw">type</span> <span class="ident">Chalk</span>;
@@ -379,7 +494,10 @@
             <span class="ident">Ty</span>::<span class="ident">Infer</span>(<span class="ident">_infer_ty</span>) <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;uncanonicalized infer ty&quot;</span>),
             <span class="comment">// FIXME this is clearly incorrect, but probably not too incorrect</span>
             <span class="comment">// and I&#39;m not sure what to actually do with Ty::Unknown</span>
-            <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> <span class="ident">PlaceholderIndex</span> { <span class="ident">ui</span>: <span class="ident">UniverseIndex</span>::<span class="ident">ROOT</span>, <span class="ident">idx</span>: <span class="number">0</span> }.<span class="ident">to_ty</span>(),
+            <span class="comment">// maybe an alternative would be `for&lt;T&gt; T`? (meaningless in rust, but expressible in chalk&#39;s Ty)</span>
+            <span class="ident">Ty</span>::<span class="ident">Unknown</span> <span class="op">=&gt;</span> {
+                <span class="ident">PlaceholderIndex</span> { <span class="ident">ui</span>: <span class="ident">UniverseIndex</span>::<span class="ident">ROOT</span>, <span class="ident">idx</span>: <span class="ident">usize</span>::<span class="ident">max_value</span>() }.<span class="ident">to_ty</span>()
+            }
         }
     }
     <span class="kw">fn</span> <span class="ident">from_chalk</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">chalk</span>: <span class="ident">chalk_ir</span>::<span class="ident">Ty</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
@@ -480,11 +598,51 @@
     }
 }
 
+<span class="kw">impl</span> <span class="ident">ToChalk</span> <span class="kw">for</span> <span class="ident">GenericPredicate</span> {
+    <span class="kw">type</span> <span class="ident">Chalk</span> <span class="op">=</span> <span class="ident">chalk_ir</span>::<span class="ident">QuantifiedWhereClause</span>;
+
+    <span class="kw">fn</span> <span class="ident">to_chalk</span>(<span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="ident">chalk_ir</span>::<span class="ident">QuantifiedWhereClause</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">GenericPredicate</span>::<span class="ident">Implemented</span>(<span class="ident">trait_ref</span>) <span class="op">=&gt;</span> {
+                <span class="ident">make_binders</span>(<span class="ident">chalk_ir</span>::<span class="ident">WhereClause</span>::<span class="ident">Implemented</span>(<span class="ident">trait_ref</span>.<span class="ident">to_chalk</span>(<span class="ident">db</span>)), <span class="number">0</span>)
+            }
+            <span class="ident">GenericPredicate</span>::<span class="ident">Error</span> <span class="op">=&gt;</span> {
+                <span class="kw">let</span> <span class="ident">impossible_trait_ref</span> <span class="op">=</span> <span class="ident">chalk_ir</span>::<span class="ident">TraitRef</span> {
+                    <span class="ident">trait_id</span>: <span class="ident">UNKNOWN_TRAIT</span>,
+                    <span class="ident">parameters</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Ty</span>::<span class="ident">Unknown</span>.<span class="ident">to_chalk</span>(<span class="ident">db</span>).<span class="ident">cast</span>()],
+                };
+                <span class="ident">make_binders</span>(<span class="ident">chalk_ir</span>::<span class="ident">WhereClause</span>::<span class="ident">Implemented</span>(<span class="ident">impossible_trait_ref</span>), <span class="number">0</span>)
+            }
+        }
+    }
+
+    <span class="kw">fn</span> <span class="ident">from_chalk</span>(
+        <span class="ident">_db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+        <span class="ident">_where_clause</span>: <span class="ident">chalk_ir</span>::<span class="ident">QuantifiedWhereClause</span>,
+    ) <span class="op">-&gt;</span> <span class="ident">GenericPredicate</span> {
+        <span class="comment">// This should never need to be called</span>
+        <span class="macro">unimplemented</span><span class="macro">!</span>()
+    }
+}
+
 <span class="kw">fn</span> <span class="ident">make_binders</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">value</span>: <span class="ident">T</span>, <span class="ident">num_vars</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">chalk_ir</span>::<span class="ident">Binders</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="ident">chalk_ir</span>::<span class="ident">Binders</span> {
         <span class="ident">value</span>,
         <span class="ident">binders</span>: <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">repeat</span>(<span class="ident">chalk_ir</span>::<span class="ident">ParameterKind</span>::<span class="ident">Ty</span>(())).<span class="ident">take</span>(<span class="ident">num_vars</span>).<span class="ident">collect</span>(),
     }
+}
+
+<span class="kw">fn</span> <span class="ident">convert_where_clauses</span>(
+    <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>,
+    <span class="ident">def</span>: <span class="ident">GenericDef</span>,
+    <span class="ident">substs</span>: <span class="kw-2">&amp;</span><span class="ident">Substs</span>,
+) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">chalk_ir</span>::<span class="ident">QuantifiedWhereClause</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">generic_predicates</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">generic_predicates</span>(<span class="ident">def</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">generic_predicates</span>.<span class="ident">len</span>());
+    <span class="kw">for</span> <span class="ident">pred</span> <span class="kw">in</span> <span class="ident">generic_predicates</span>.<span class="ident">iter</span>() {
+        <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">pred</span>.<span class="ident">clone</span>().<span class="ident">subst</span>(<span class="ident">substs</span>).<span class="ident">to_chalk</span>(<span class="ident">db</span>));
+    }
+    <span class="ident">result</span>
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">DB</span><span class="op">&gt;</span> <span class="ident">chalk_solve</span>::<span class="ident">RustIrDatabase</span> <span class="kw">for</span> <span class="ident">ChalkContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">DB</span><span class="op">&gt;</span>
@@ -496,18 +654,35 @@
     }
     <span class="kw">fn</span> <span class="ident">trait_datum</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trait_id</span>: <span class="ident">chalk_ir</span>::<span class="ident">TraitId</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TraitDatum</span><span class="op">&gt;</span> {
         <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;trait_datum {:?}&quot;</span>, <span class="ident">trait_id</span>);
+        <span class="kw">if</span> <span class="ident">trait_id</span> <span class="op">==</span> <span class="ident">UNKNOWN_TRAIT</span> {
+            <span class="kw">let</span> <span class="ident">trait_datum_bound</span> <span class="op">=</span> <span class="ident">chalk_rust_ir</span>::<span class="ident">TraitDatumBound</span> {
+                <span class="ident">trait_ref</span>: <span class="ident">chalk_ir</span>::<span class="ident">TraitRef</span> {
+                    <span class="ident">trait_id</span>: <span class="ident">UNKNOWN_TRAIT</span>,
+                    <span class="ident">parameters</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">chalk_ir</span>::<span class="ident">Ty</span>::<span class="ident">BoundVar</span>(<span class="number">0</span>).<span class="ident">cast</span>()],
+                },
+                <span class="ident">associated_ty_ids</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+                <span class="ident">where_clauses</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+                <span class="ident">flags</span>: <span class="ident">chalk_rust_ir</span>::<span class="ident">TraitFlags</span> {
+                    <span class="ident">auto</span>: <span class="bool-val">false</span>,
+                    <span class="ident">marker</span>: <span class="bool-val">false</span>,
+                    <span class="ident">upstream</span>: <span class="bool-val">true</span>,
+                    <span class="ident">fundamental</span>: <span class="bool-val">false</span>,
+                },
+            };
+            <span class="kw">return</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">TraitDatum</span> { <span class="ident">binders</span>: <span class="ident">make_binders</span>(<span class="ident">trait_datum_bound</span>, <span class="number">1</span>) });
+        }
         <span class="kw">let</span> <span class="ident">trait_</span>: <span class="ident">Trait</span> <span class="op">=</span> <span class="ident">from_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">trait_id</span>);
         <span class="kw">let</span> <span class="ident">generic_params</span> <span class="op">=</span> <span class="ident">trait_</span>.<span class="ident">generic_params</span>(<span class="self">self</span>.<span class="ident">db</span>);
         <span class="kw">let</span> <span class="ident">bound_vars</span> <span class="op">=</span> <span class="ident">Substs</span>::<span class="ident">bound_vars</span>(<span class="kw-2">&amp;</span><span class="ident">generic_params</span>);
         <span class="kw">let</span> <span class="ident">trait_ref</span> <span class="op">=</span> <span class="ident">trait_</span>.<span class="ident">trait_ref</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">subst</span>(<span class="kw-2">&amp;</span><span class="ident">bound_vars</span>).<span class="ident">to_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>);
         <span class="kw">let</span> <span class="ident">flags</span> <span class="op">=</span> <span class="ident">chalk_rust_ir</span>::<span class="ident">TraitFlags</span> {
-            <span class="comment">// FIXME set these flags correctly</span>
-            <span class="ident">auto</span>: <span class="bool-val">false</span>,
-            <span class="ident">marker</span>: <span class="bool-val">false</span>,
+            <span class="ident">auto</span>: <span class="ident">trait_</span>.<span class="ident">is_auto</span>(<span class="self">self</span>.<span class="ident">db</span>),
             <span class="ident">upstream</span>: <span class="ident">trait_</span>.<span class="ident">module</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">krate</span>(<span class="self">self</span>.<span class="ident">db</span>) <span class="op">!=</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">krate</span>),
+            <span class="comment">// FIXME set these flags correctly</span>
+            <span class="ident">marker</span>: <span class="bool-val">false</span>,
             <span class="ident">fundamental</span>: <span class="bool-val">false</span>,
         };
-        <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>(); <span class="comment">// FIXME add where clauses</span>
+        <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">convert_where_clauses</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">trait_</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span><span class="ident">bound_vars</span>);
         <span class="kw">let</span> <span class="ident">associated_ty_ids</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>(); <span class="comment">// FIXME add associated tys</span>
         <span class="kw">let</span> <span class="ident">trait_datum_bound</span> <span class="op">=</span>
             <span class="ident">chalk_rust_ir</span>::<span class="ident">TraitDatumBound</span> { <span class="ident">trait_ref</span>, <span class="ident">where_clauses</span>, <span class="ident">flags</span>, <span class="ident">associated_ty_ids</span> };
@@ -519,21 +694,48 @@
         <span class="kw">let</span> <span class="ident">type_ctor</span> <span class="op">=</span> <span class="ident">from_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">struct_id</span>);
         <span class="comment">// FIXME might be nicer if we can create a fake GenericParams for the TypeCtor</span>
         <span class="comment">// FIXME extract this to a method on Ty</span>
-        <span class="kw">let</span> (<span class="ident">num_params</span>, <span class="ident">upstream</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">type_ctor</span> {
+        <span class="kw">let</span> (<span class="ident">num_params</span>, <span class="ident">where_clauses</span>, <span class="ident">upstream</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">type_ctor</span> {
             <span class="ident">TypeCtor</span>::<span class="ident">Bool</span>
             <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Char</span>
             <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Int</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Float</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Never</span>
-            <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Str</span> <span class="op">=&gt;</span> (<span class="number">0</span>, <span class="bool-val">true</span>),
-            <span class="ident">TypeCtor</span>::<span class="ident">Slice</span> <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Array</span> <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">RawPtr</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Ref</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (<span class="number">1</span>, <span class="bool-val">true</span>),
-            <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> { <span class="ident">num_args</span> } <span class="op">=&gt;</span> (<span class="ident">num_args</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>, <span class="bool-val">true</span>),
-            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { <span class="ident">cardinality</span> } <span class="op">=&gt;</span> (<span class="ident">cardinality</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="bool-val">true</span>),
-            <span class="ident">TypeCtor</span>::<span class="ident">FnDef</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">unimplemented</span><span class="macro">!</span>(),
-            <span class="ident">TypeCtor</span>::<span class="ident">Adt</span>(<span class="ident">adt</span>) <span class="op">=&gt;</span> {
-                <span class="kw">let</span> <span class="ident">generic_params</span> <span class="op">=</span> <span class="ident">adt</span>.<span class="ident">generic_params</span>(<span class="self">self</span>.<span class="ident">db</span>);
+            <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Str</span> <span class="op">=&gt;</span> (<span class="number">0</span>, <span class="macro">vec</span><span class="macro">!</span>[], <span class="bool-val">true</span>),
+            <span class="ident">TypeCtor</span>::<span class="ident">Slice</span> <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Array</span> <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">RawPtr</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">TypeCtor</span>::<span class="ident">Ref</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+                (<span class="number">1</span>, <span class="macro">vec</span><span class="macro">!</span>[], <span class="bool-val">true</span>)
+            }
+            <span class="ident">TypeCtor</span>::<span class="ident">FnPtr</span> { <span class="ident">num_args</span> } <span class="op">=&gt;</span> (<span class="ident">num_args</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>, <span class="macro">vec</span><span class="macro">!</span>[], <span class="bool-val">true</span>),
+            <span class="ident">TypeCtor</span>::<span class="ident">Tuple</span> { <span class="ident">cardinality</span> } <span class="op">=&gt;</span> (<span class="ident">cardinality</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="macro">vec</span><span class="macro">!</span>[], <span class="bool-val">true</span>),
+            <span class="ident">TypeCtor</span>::<span class="ident">FnDef</span>(<span class="ident">callable</span>) <span class="op">=&gt;</span> {
+                <span class="macro">tested_by</span><span class="macro">!</span>(<span class="ident">trait_resolution_on_fn_type</span>);
+                <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">callable</span> {
+                    <span class="ident">CallableDef</span>::<span class="ident">Function</span>(<span class="ident">f</span>) <span class="op">=&gt;</span> <span class="ident">f</span>.<span class="ident">module</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">krate</span>(<span class="self">self</span>.<span class="ident">db</span>),
+                    <span class="ident">CallableDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">module</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">krate</span>(<span class="self">self</span>.<span class="ident">db</span>),
+                    <span class="ident">CallableDef</span>::<span class="ident">EnumVariant</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> {
+                        <span class="ident">v</span>.<span class="ident">parent_enum</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">module</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">krate</span>(<span class="self">self</span>.<span class="ident">db</span>)
+                    }
+                };
+                <span class="kw">let</span> <span class="ident">generic_def</span>: <span class="ident">GenericDef</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">callable</span> {
+                    <span class="ident">CallableDef</span>::<span class="ident">Function</span>(<span class="ident">f</span>) <span class="op">=&gt;</span> <span class="ident">f</span>.<span class="ident">into</span>(),
+                    <span class="ident">CallableDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">into</span>(),
+                    <span class="ident">CallableDef</span>::<span class="ident">EnumVariant</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="ident">v</span>.<span class="ident">parent_enum</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">into</span>(),
+                };
+                <span class="kw">let</span> <span class="ident">generic_params</span> <span class="op">=</span> <span class="ident">generic_def</span>.<span class="ident">generic_params</span>(<span class="self">self</span>.<span class="ident">db</span>);
+                <span class="kw">let</span> <span class="ident">bound_vars</span> <span class="op">=</span> <span class="ident">Substs</span>::<span class="ident">bound_vars</span>(<span class="kw-2">&amp;</span><span class="ident">generic_params</span>);
+                <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">convert_where_clauses</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">generic_def</span>, <span class="kw-2">&amp;</span><span class="ident">bound_vars</span>);
                 (
                     <span class="ident">generic_params</span>.<span class="ident">count_params_including_parent</span>(),
+                    <span class="ident">where_clauses</span>,
+                    <span class="ident">krate</span> <span class="op">!=</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">krate</span>),
+                )
+            }
+            <span class="ident">TypeCtor</span>::<span class="ident">Adt</span>(<span class="ident">adt</span>) <span class="op">=&gt;</span> {
+                <span class="kw">let</span> <span class="ident">generic_params</span> <span class="op">=</span> <span class="ident">adt</span>.<span class="ident">generic_params</span>(<span class="self">self</span>.<span class="ident">db</span>);
+                <span class="kw">let</span> <span class="ident">bound_vars</span> <span class="op">=</span> <span class="ident">Substs</span>::<span class="ident">bound_vars</span>(<span class="kw-2">&amp;</span><span class="ident">generic_params</span>);
+                <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">convert_where_clauses</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">adt</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span><span class="ident">bound_vars</span>);
+                (
+                    <span class="ident">generic_params</span>.<span class="ident">count_params_including_parent</span>(),
+                    <span class="ident">where_clauses</span>,
                     <span class="ident">adt</span>.<span class="ident">krate</span>(<span class="self">self</span>.<span class="ident">db</span>) <span class="op">!=</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">krate</span>),
                 )
             }
@@ -543,7 +745,6 @@
             <span class="comment">// FIXME set fundamental flag correctly</span>
             <span class="ident">fundamental</span>: <span class="bool-val">false</span>,
         };
-        <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>(); <span class="comment">// FIXME add where clauses</span>
         <span class="kw">let</span> <span class="ident">self_ty</span> <span class="op">=</span> <span class="ident">chalk_ir</span>::<span class="ident">ApplicationTy</span> {
             <span class="ident">name</span>: <span class="ident">TypeName</span>::<span class="ident">TypeKindId</span>(<span class="ident">type_ctor</span>.<span class="ident">to_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">into</span>()),
             <span class="ident">parameters</span>: (<span class="number">0</span>..<span class="ident">num_params</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">chalk_ir</span>::<span class="ident">Ty</span>::<span class="ident">BoundVar</span>(<span class="ident">i</span>).<span class="ident">cast</span>()).<span class="ident">collect</span>(),
@@ -571,10 +772,23 @@
         } <span class="kw">else</span> {
             <span class="ident">chalk_rust_ir</span>::<span class="ident">ImplType</span>::<span class="ident">External</span>
         };
+        <span class="kw">let</span> <span class="ident">where_clauses</span> <span class="op">=</span> <span class="ident">convert_where_clauses</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">impl_block</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span><span class="ident">bound_vars</span>);
+        <span class="kw">let</span> <span class="ident">negative</span> <span class="op">=</span> <span class="ident">impl_block</span>.<span class="ident">is_negative</span>(<span class="self">self</span>.<span class="ident">db</span>);
+        <span class="macro">debug</span><span class="macro">!</span>(
+            <span class="string">&quot;impl {:?}: {}{} where {:?}&quot;</span>,
+            <span class="ident">impl_id</span>,
+            <span class="kw">if</span> <span class="ident">negative</span> { <span class="string">&quot;!&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;&quot;</span> },
+            <span class="ident">trait_ref</span>.<span class="ident">display</span>(<span class="self">self</span>.<span class="ident">db</span>),
+            <span class="ident">where_clauses</span>
+        );
+        <span class="kw">let</span> <span class="ident">trait_ref</span> <span class="op">=</span> <span class="ident">trait_ref</span>.<span class="ident">to_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>);
         <span class="kw">let</span> <span class="ident">impl_datum_bound</span> <span class="op">=</span> <span class="ident">chalk_rust_ir</span>::<span class="ident">ImplDatumBound</span> {
-            <span class="comment">// FIXME handle negative impls (impl !Sync for Foo)</span>
-            <span class="ident">trait_ref</span>: <span class="ident">chalk_rust_ir</span>::<span class="ident">PolarizedTraitRef</span>::<span class="ident">Positive</span>(<span class="ident">trait_ref</span>.<span class="ident">to_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>)),
-            <span class="ident">where_clauses</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),        <span class="comment">// FIXME add where clauses</span>
+            <span class="ident">trait_ref</span>: <span class="kw">if</span> <span class="ident">negative</span> {
+                <span class="ident">chalk_rust_ir</span>::<span class="ident">PolarizedTraitRef</span>::<span class="ident">Negative</span>(<span class="ident">trait_ref</span>)
+            } <span class="kw">else</span> {
+                <span class="ident">chalk_rust_ir</span>::<span class="ident">PolarizedTraitRef</span>::<span class="ident">Positive</span>(<span class="ident">trait_ref</span>)
+            },
+            <span class="ident">where_clauses</span>,
             <span class="ident">associated_ty_values</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="comment">// FIXME add associated type values</span>
             <span class="ident">impl_type</span>,
         };
@@ -583,16 +797,18 @@
     }
     <span class="kw">fn</span> <span class="ident">impls_for_trait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trait_id</span>: <span class="ident">chalk_ir</span>::<span class="ident">TraitId</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ImplId</span><span class="op">&gt;</span> {
         <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;impls_for_trait {:?}&quot;</span>, <span class="ident">trait_id</span>);
+        <span class="kw">if</span> <span class="ident">trait_id</span> <span class="op">==</span> <span class="ident">UNKNOWN_TRAIT</span> {
+            <span class="kw">return</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        }
         <span class="kw">let</span> <span class="ident">trait_</span> <span class="op">=</span> <span class="ident">from_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>, <span class="ident">trait_id</span>);
-        <span class="self">self</span>.<span class="ident">db</span>
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">db</span>
             .<span class="ident">impls_for_trait</span>(<span class="self">self</span>.<span class="ident">krate</span>, <span class="ident">trait_</span>)
             .<span class="ident">iter</span>()
-            <span class="comment">// FIXME temporary hack -- as long as we&#39;re not lowering where clauses</span>
-            <span class="comment">// correctly, ignore impls with them completely so as to not treat</span>
-            <span class="comment">// impl&lt;T&gt; Trait for T where T: ... as a blanket impl on all types</span>
-            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">impl_block</span><span class="op">|</span> <span class="ident">impl_block</span>.<span class="ident">generic_params</span>(<span class="self">self</span>.<span class="ident">db</span>).<span class="ident">where_predicates</span>.<span class="ident">is_empty</span>())
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">impl_block</span><span class="op">|</span> <span class="ident">impl_block</span>.<span class="ident">to_chalk</span>(<span class="self">self</span>.<span class="ident">db</span>))
-            .<span class="ident">collect</span>()
+            .<span class="ident">collect</span>();
+        <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;impls_for_trait returned {} impls&quot;</span>, <span class="ident">result</span>.<span class="ident">len</span>());
+        <span class="ident">result</span>
     }
     <span class="kw">fn</span> <span class="ident">impl_provided_for</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,

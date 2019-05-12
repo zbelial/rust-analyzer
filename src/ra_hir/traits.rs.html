@@ -81,6 +81,12 @@
 <span id="81">81</span>
 <span id="82">82</span>
 <span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! HIR for trait definitions.</span>
 
@@ -95,6 +101,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TraitData</span> {
     <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Name</span><span class="op">&gt;</span>,
     <span class="ident">items</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TraitItem</span><span class="op">&gt;</span>,
+    <span class="ident">auto</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">TraitData</span> {
@@ -103,6 +110,7 @@
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">name</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">as_name</span>());
         <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">tr</span>.<span class="ident">module</span>(<span class="ident">db</span>);
         <span class="kw">let</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">LocationCtx</span>::<span class="ident">new</span>(<span class="ident">db</span>, <span class="ident">module</span>, <span class="ident">file_id</span>);
+        <span class="kw">let</span> <span class="ident">auto</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">is_auto</span>();
         <span class="kw">let</span> <span class="ident">items</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">item_list</span>) <span class="op">=</span> <span class="ident">node</span>.<span class="ident">item_list</span>() {
             <span class="ident">item_list</span>
                 .<span class="ident">impl_items</span>()
@@ -115,7 +123,7 @@
         } <span class="kw">else</span> {
             <span class="ident">Vec</span>::<span class="ident">new</span>()
         };
-        <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">TraitData</span> { <span class="ident">name</span>, <span class="ident">items</span> })
+        <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">TraitData</span> { <span class="ident">name</span>, <span class="ident">items</span>, <span class="ident">auto</span> })
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Name</span><span class="op">&gt;</span> {
@@ -124,6 +132,10 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">items</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">TraitItem</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">items</span>
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_auto</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">auto</span>
     }
 }
 

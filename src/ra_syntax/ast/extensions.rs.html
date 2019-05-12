@@ -348,6 +348,16 @@
 <span id="348">348</span>
 <span id="349">349</span>
 <span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Various extension methods to ast Nodes, which are hard to code-generate.</span>
 <span class="doccomment">//! Extensions for various expressions live in a sibling `expr_extensions` module.</span>
@@ -520,6 +530,10 @@
         <span class="kw">let</span> <span class="ident">first</span> <span class="op">=</span> <span class="ident">types</span>.<span class="ident">next</span>();
         <span class="kw">let</span> <span class="ident">second</span> <span class="op">=</span> <span class="ident">types</span>.<span class="ident">next</span>();
         (<span class="ident">first</span>, <span class="ident">second</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_negative</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">t</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">EXCL</span>)
     }
 }
 
@@ -697,6 +711,12 @@
             .<span class="ident">children_with_tokens</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">as_token</span>())
             .<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">LIFETIME</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">ast</span>::<span class="ident">TraitDef</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_auto</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">t</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">AUTO_KW</span>)
     }
 }
 </pre></div>
