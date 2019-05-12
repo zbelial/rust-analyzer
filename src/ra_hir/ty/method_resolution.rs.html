@@ -291,6 +291,8 @@
 <span id="291">291</span>
 <span id="292">292</span>
 <span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module is concerned with finding methods that a given type provides.</span>
 <span class="doccomment">//! For details about how this works in rustc, see the method lookup page in the</span>
@@ -369,11 +371,13 @@
 
             <span class="kw">let</span> <span class="ident">target_ty</span> <span class="op">=</span> <span class="ident">impl_block</span>.<span class="ident">target_ty</span>(<span class="ident">db</span>);
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tr</span>) <span class="op">=</span> <span class="ident">impl_block</span>.<span class="ident">target_trait_ref</span>(<span class="ident">db</span>) {
-                <span class="self">self</span>.<span class="ident">impls_by_trait</span>
-                    .<span class="ident">entry</span>(<span class="ident">tr</span>.<span class="ident">trait_</span>)
-                    .<span class="ident">or_insert_with</span>(<span class="ident">Vec</span>::<span class="ident">new</span>)
-                    .<span class="ident">push</span>((<span class="ident">module</span>.<span class="ident">module_id</span>, <span class="ident">impl_id</span>));
+            <span class="kw">if</span> <span class="ident">impl_block</span>.<span class="ident">target_trait</span>(<span class="ident">db</span>).<span class="ident">is_some</span>() {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tr</span>) <span class="op">=</span> <span class="ident">impl_block</span>.<span class="ident">target_trait_ref</span>(<span class="ident">db</span>) {
+                    <span class="self">self</span>.<span class="ident">impls_by_trait</span>
+                        .<span class="ident">entry</span>(<span class="ident">tr</span>.<span class="ident">trait_</span>)
+                        .<span class="ident">or_insert_with</span>(<span class="ident">Vec</span>::<span class="ident">new</span>)
+                        .<span class="ident">push</span>((<span class="ident">module</span>.<span class="ident">module_id</span>, <span class="ident">impl_id</span>));
+                }
             } <span class="kw">else</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">target_ty_fp</span>) <span class="op">=</span> <span class="ident">TyFingerprint</span>::<span class="ident">for_impl</span>(<span class="kw-2">&amp;</span><span class="ident">target_ty</span>) {
                     <span class="self">self</span>.<span class="ident">impls</span>
@@ -477,7 +481,7 @@
     <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">Ty</span>, <span class="ident">Function</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
 ) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">krate</span> <span class="op">=</span> <span class="ident">resolver</span>.<span class="ident">krate</span>()<span class="question-mark">?</span>;
-    <span class="lifetime">&#39;traits</span>: <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">resolver</span>.<span class="ident">traits_in_scope</span>() {
+    <span class="lifetime">&#39;traits</span>: <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">resolver</span>.<span class="ident">traits_in_scope</span>(<span class="ident">db</span>) {
         <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">t</span>.<span class="ident">trait_data</span>(<span class="ident">db</span>);
         <span class="comment">// we&#39;ll be lazy about checking whether the type implements the</span>
         <span class="comment">// trait, but if we find out it doesn&#39;t, we&#39;ll skip the rest of the</span>
