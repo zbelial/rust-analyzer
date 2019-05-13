@@ -275,7 +275,7 @@
             <span class="ident">ModuleSource</span>::<span class="ident">Module</span>(<span class="ident">m</span>) <span class="op">=&gt;</span> <span class="ident">m</span>.<span class="ident">syntax</span>().<span class="ident">ancestors</span>().<span class="ident">find_map</span>(<span class="ident">SourceFile</span>::<span class="ident">cast</span>).<span class="ident">unwrap</span>(),
         };
 
-        <span class="self">self</span>.<span class="ident">map</span>[<span class="ident">impl_id</span>].<span class="ident">to_node</span>(<span class="ident">file</span>).<span class="ident">to_owned</span>()
+        <span class="self">self</span>.<span class="ident">map</span>[<span class="ident">impl_id</span>].<span class="ident">to_node</span>(<span class="ident">file</span>.<span class="ident">syntax</span>()).<span class="ident">to_owned</span>()
     }
 }
 
