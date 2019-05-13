@@ -378,6 +378,7 @@
 <span id="378">378</span>
 <span id="379">379</span>
 <span id="380">380</span>
+<span id="381">381</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_db</span>::<span class="ident">SourceDatabase</span>;
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
@@ -385,6 +386,7 @@
     <span class="ident">algo</span>::{<span class="ident">find_covering_element</span>, <span class="ident">find_token_at_offset</span>, <span class="ident">TokenAtOffset</span>},
     <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">SyntaxToken</span>,
     <span class="ident">ast</span>::{<span class="self">self</span>, <span class="ident">AstNode</span>, <span class="ident">AstToken</span>},
+    <span class="ident">T</span>
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">FileRange</span>, <span class="ident">db</span>::<span class="ident">RootDatabase</span>};
@@ -516,7 +518,7 @@
     <span class="kw">fn</span> <span class="ident">priority</span>(<span class="ident">n</span>: <span class="ident">SyntaxToken</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
         <span class="kw">match</span> <span class="ident">n</span>.<span class="ident">kind</span>() {
             <span class="ident">WHITESPACE</span> <span class="op">=&gt;</span> <span class="number">0</span>,
-            <span class="ident">IDENT</span> <span class="op">|</span> <span class="ident">SELF_KW</span> <span class="op">|</span> <span class="ident">SUPER_KW</span> <span class="op">|</span> <span class="ident">CRATE_KW</span> <span class="op">|</span> <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> <span class="number">2</span>,
+            <span class="ident">IDENT</span> <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">super</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">crate</span>] <span class="op">|</span> <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> <span class="number">2</span>,
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="number">1</span>,
         }
     }
