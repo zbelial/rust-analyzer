@@ -186,7 +186,7 @@
 <span class="doccomment">/// This controls the maximum size of types Chalk considers. If we set this too</span>
 <span class="doccomment">/// high, we can run into slow edge cases; if we set it too low, Chalk won&#39;t</span>
 <span class="doccomment">/// find some solutions.</span>
-<span class="kw">const</span> <span class="ident">CHALK_SOLVER_MAX_SIZE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">2</span>;
+<span class="kw">const</span> <span class="ident">CHALK_SOLVER_MAX_SIZE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">4</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">struct</span> <span class="ident">ChalkContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">DB</span><span class="op">&gt;</span> {
