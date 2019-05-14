@@ -106,8 +106,13 @@
 <span id="106">106</span>
 <span id="107">107</span>
 <span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashSet</span>, <span class="ident">time</span>::<span class="ident">Instant</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashSet</span>, <span class="ident">time</span>::<span class="ident">Instant</span>, <span class="ident">fmt</span>::<span class="ident">Write</span>};
 
 <span class="kw">use</span> <span class="ident">ra_db</span>::<span class="ident">SourceDatabase</span>;
 <span class="kw">use</span> <span class="ident">ra_batch</span>::<span class="ident">BatchDatabase</span>;
@@ -161,19 +166,24 @@
     <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Total declarations: {}&quot;</span>, <span class="ident">num_decls</span>);
     <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Total functions: {}&quot;</span>, <span class="ident">funcs</span>.<span class="ident">len</span>());
     <span class="kw">let</span> <span class="ident">bar</span> <span class="op">=</span> <span class="ident">indicatif</span>::<span class="ident">ProgressBar</span>::<span class="ident">new</span>(<span class="ident">funcs</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>);
+    <span class="ident">bar</span>.<span class="ident">set_style</span>(
+        <span class="ident">indicatif</span>::<span class="ident">ProgressStyle</span>::<span class="ident">default_bar</span>().<span class="ident">template</span>(<span class="string">&quot;{wide_bar} {pos}/{len}\n{msg}&quot;</span>),
+    );
     <span class="ident">bar</span>.<span class="ident">tick</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_exprs</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_exprs_unknown</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_exprs_partially_unknown</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">for</span> <span class="ident">f</span> <span class="kw">in</span> <span class="ident">funcs</span> {
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">msg</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;processing: {}&quot;</span>, <span class="ident">name</span>);
         <span class="kw">if</span> <span class="ident">verbose</span> {
             <span class="kw">let</span> (<span class="ident">file_id</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="ident">f</span>.<span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>);
             <span class="kw">let</span> <span class="ident">original_file</span> <span class="op">=</span> <span class="ident">file_id</span>.<span class="ident">original_file</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>);
             <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">file_relative_path</span>(<span class="ident">original_file</span>);
             <span class="kw">let</span> <span class="ident">syntax_range</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">syntax</span>().<span class="ident">range</span>();
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{} ({:?} {})&quot;</span>, <span class="ident">name</span>, <span class="ident">path</span>, <span class="ident">syntax_range</span>);
+            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">msg</span>, <span class="string">&quot; ({:?} {})&quot;</span>, <span class="ident">path</span>, <span class="ident">syntax_range</span>).<span class="ident">unwrap</span>();
         }
+        <span class="ident">bar</span>.<span class="ident">set_message</span>(<span class="kw-2">&amp;</span><span class="ident">msg</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">only_name</span>) <span class="op">=</span> <span class="ident">only</span> {
             <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">to_string</span>() <span class="op">!=</span> <span class="ident">only_name</span> {
                 <span class="kw">continue</span>;

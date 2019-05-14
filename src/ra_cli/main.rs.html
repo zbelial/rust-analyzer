@@ -80,7 +80,7 @@
         .<span class="ident">subcommand</span>(<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;symbols&quot;</span>))
         .<span class="ident">subcommand</span>(
             <span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;analysis-stats&quot;</span>)
-                .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;verbose&quot;</span>).<span class="ident">short</span>(<span class="string">&quot;v&quot;</span>))
+                .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;verbose&quot;</span>).<span class="ident">short</span>(<span class="string">&quot;v&quot;</span>).<span class="ident">long</span>(<span class="string">&quot;verbose&quot;</span>))
                 .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;only&quot;</span>).<span class="ident">short</span>(<span class="string">&quot;o&quot;</span>).<span class="ident">takes_value</span>(<span class="bool-val">true</span>))
                 .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;path&quot;</span>)),
         )
