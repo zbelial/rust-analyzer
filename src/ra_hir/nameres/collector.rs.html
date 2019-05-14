@@ -695,7 +695,7 @@
         <span class="ident">diagnostics</span>::<span class="ident">DefDiagnostic</span>,
         <span class="ident">raw</span>,
     },
-    <span class="ident">ids</span>::{<span class="ident">AstItemDef</span>, <span class="ident">LocationCtx</span>, <span class="ident">MacroCallLoc</span>, <span class="ident">MacroCallId</span>, <span class="ident">MacroDefId</span>},
+    <span class="ident">ids</span>::{<span class="ident">AstItemDef</span>, <span class="ident">LocationCtx</span>, <span class="ident">MacroCallLoc</span>, <span class="ident">MacroCallId</span>, <span class="ident">MacroDefId</span>, <span class="ident">MacroFileKind</span>},
     <span class="ident">AstId</span>,
 };
 
@@ -1051,7 +1051,7 @@
         <span class="self">self</span>.<span class="ident">macro_stack_monitor</span>.<span class="ident">increase</span>(<span class="ident">macro_def_id</span>);
 
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">macro_stack_monitor</span>.<span class="ident">is_poison</span>(<span class="ident">macro_def_id</span>) {
-            <span class="kw">let</span> <span class="ident">file_id</span>: <span class="ident">HirFileId</span> <span class="op">=</span> <span class="ident">macro_call_id</span>.<span class="ident">into</span>();
+            <span class="kw">let</span> <span class="ident">file_id</span>: <span class="ident">HirFileId</span> <span class="op">=</span> <span class="ident">macro_call_id</span>.<span class="ident">as_file</span>(<span class="ident">MacroFileKind</span>::<span class="ident">Items</span>);
             <span class="kw">let</span> <span class="ident">raw_items</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">raw_items</span>(<span class="ident">file_id</span>);
             <span class="ident">ModCollector</span> { <span class="ident">def_collector</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>, <span class="ident">file_id</span>, <span class="ident">module_id</span>, <span class="ident">raw_items</span>: <span class="kw-2">&amp;</span><span class="ident">raw_items</span> }
                 .<span class="ident">collect</span>(<span class="ident">raw_items</span>.<span class="ident">items</span>());
