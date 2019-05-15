@@ -619,14 +619,14 @@
 <span class="comment">// fn c() { 1; 2; }</span>
 <span class="comment">// fn d() { 1; 2 }</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">block</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>) {
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected a block&quot;</span>);
         <span class="kw">return</span>;
     }
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">expr_block_contents</span>(<span class="ident">p</span>);
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_CURLY</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">BLOCK</span>);
 }
 
@@ -648,10 +648,10 @@
     <span class="comment">//     #[C] #[D] {}</span>
     <span class="comment">//     #[D] return ();</span>
     <span class="comment">// }</span>
-    <span class="kw">let</span> <span class="ident">has_attrs</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">POUND</span>);
+    <span class="kw">let</span> <span class="ident">has_attrs</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[#]);
     <span class="ident">attributes</span>::<span class="ident">outer_attributes</span>(<span class="ident">p</span>);
 
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">LET_KW</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">let</span>]) {
         <span class="ident">let_stmt</span>(<span class="ident">p</span>, <span class="ident">m</span>, <span class="ident">with_semi</span>);
         <span class="kw">return</span>;
     }
@@ -673,7 +673,7 @@
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;attributes are not allowed on {:?}&quot;</span>, <span class="ident">kind</span>));
     }
 
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
         <span class="comment">// test attr_on_last_expr_in_block</span>
         <span class="comment">// fn foo() {</span>
         <span class="comment">//     { #[A] bar!()? }</span>
@@ -704,15 +704,15 @@
         <span class="kw">match</span> <span class="ident">with_semi</span> {
             <span class="ident">StmtWithSemi</span>::<span class="ident">Yes</span> <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="ident">blocklike</span>.<span class="ident">is_block</span>() {
-                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">SEMI</span>);
+                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[;]);
                 } <span class="kw">else</span> {
-                    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">SEMI</span>);
+                    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[;]);
                 }
             }
             <span class="ident">StmtWithSemi</span>::<span class="ident">No</span> <span class="op">=&gt;</span> {}
             <span class="ident">StmtWithSemi</span>::<span class="ident">Optional</span> <span class="op">=&gt;</span> {
-                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">SEMI</span>) {
-                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">SEMI</span>);
+                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[;]) {
+                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[;]);
                 }
             }
         }
@@ -728,24 +728,24 @@
     <span class="comment">//     let d: i32 = 92;</span>
     <span class="comment">// }</span>
     <span class="kw">fn</span> <span class="ident">let_stmt</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">m</span>: <span class="ident">Marker</span>, <span class="ident">with_semi</span>: <span class="ident">StmtWithSemi</span>) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">LET_KW</span>));
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">let</span>]));
         <span class="ident">p</span>.<span class="ident">bump</span>();
         <span class="ident">patterns</span>::<span class="ident">pattern</span>(<span class="ident">p</span>);
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
             <span class="ident">types</span>::<span class="ident">ascription</span>(<span class="ident">p</span>);
         }
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">EQ</span>) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) {
             <span class="ident">expressions</span>::<span class="ident">expr</span>(<span class="ident">p</span>);
         }
 
         <span class="kw">match</span> <span class="ident">with_semi</span> {
             <span class="ident">StmtWithSemi</span>::<span class="ident">Yes</span> <span class="op">=&gt;</span> {
-                <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">SEMI</span>);
+                <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[;]);
             }
             <span class="ident">StmtWithSemi</span>::<span class="ident">No</span> <span class="op">=&gt;</span> {}
             <span class="ident">StmtWithSemi</span>::<span class="ident">Optional</span> <span class="op">=&gt;</span> {
-                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">SEMI</span>) {
-                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">SEMI</span>);
+                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[;]) {
+                    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[;]);
                 }
             }
         }
@@ -757,12 +757,12 @@
     <span class="comment">// This is checked by a validator</span>
     <span class="ident">attributes</span>::<span class="ident">inner_attributes</span>(<span class="ident">p</span>);
 
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
         <span class="comment">// test nocontentexpr</span>
         <span class="comment">// fn foo(){</span>
         <span class="comment">//     ;;;some_expr();;;;{;;;};;;;Ok(())</span>
         <span class="comment">// }</span>
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">SEMI</span> {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[;] {
             <span class="ident">p</span>.<span class="ident">bump</span>();
             <span class="kw">continue</span>;
         }
@@ -785,41 +785,41 @@
 <span class="kw">fn</span> <span class="ident">current_op</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">Parser</span>) <span class="op">-&gt;</span> (<span class="ident">u8</span>, <span class="ident">Op</span>) {
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span> <span class="ident">p</span>.<span class="ident">current3</span>() {
         <span class="kw">match</span> <span class="ident">t</span> {
-            (<span class="ident">L_ANGLE</span>, <span class="ident">L_ANGLE</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">SHLEQ</span>, <span class="number">3</span>)),
-            (<span class="ident">R_ANGLE</span>, <span class="ident">R_ANGLE</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">SHREQ</span>, <span class="number">3</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;&lt;=</span>], <span class="number">3</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;&gt;=</span>], <span class="number">3</span>)),
             <span class="kw">_</span> <span class="op">=&gt;</span> (),
         }
     }
 
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span> <span class="ident">p</span>.<span class="ident">current2</span>() {
         <span class="kw">match</span> <span class="ident">t</span> {
-            (<span class="ident">PLUS</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">PLUSEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">MINUS</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">MINUSEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">STAR</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">STAREQ</span>, <span class="number">2</span>)),
-            (<span class="ident">PERCENT</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">PERCENTEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">SLASH</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">SLASHEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">PIPE</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">PIPEEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">AMP</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">AMPEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">CARET</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">CARETEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">PIPE</span>, <span class="ident">PIPE</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">3</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">PIPEPIPE</span>, <span class="number">2</span>)),
-            (<span class="ident">AMP</span>, <span class="ident">AMP</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">4</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">AMPAMP</span>, <span class="number">2</span>)),
-            (<span class="ident">L_ANGLE</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">5</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">LTEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">R_ANGLE</span>, <span class="ident">EQ</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">5</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">GTEQ</span>, <span class="number">2</span>)),
-            (<span class="ident">L_ANGLE</span>, <span class="ident">L_ANGLE</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">9</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">SHL</span>, <span class="number">2</span>)),
-            (<span class="ident">R_ANGLE</span>, <span class="ident">R_ANGLE</span>) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">9</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="ident">SHR</span>, <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">+</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">+=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">-=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">*=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">%</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">%=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">/</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">/=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">|=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&amp;=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">^</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">1</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">^=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">3</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">||</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">4</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&amp;&amp;</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">5</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">5</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;=</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">9</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;&lt;</span>], <span class="number">2</span>)),
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>]) <span class="op">=&gt;</span> <span class="kw">return</span> (<span class="number">9</span>, <span class="ident">Op</span>::<span class="ident">Composite</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;&gt;</span>], <span class="number">2</span>)),
             <span class="kw">_</span> <span class="op">=&gt;</span> (),
         }
     }
 
     <span class="kw">let</span> <span class="ident">bp</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
-        <span class="ident">EQ</span> <span class="op">=&gt;</span> <span class="number">1</span>,
-        <span class="ident">DOTDOT</span> <span class="op">|</span> <span class="ident">DOTDOTEQ</span> <span class="op">=&gt;</span> <span class="number">2</span>,
-        <span class="ident">EQEQ</span> <span class="op">|</span> <span class="ident">NEQ</span> <span class="op">|</span> <span class="ident">L_ANGLE</span> <span class="op">|</span> <span class="ident">R_ANGLE</span> <span class="op">=&gt;</span> <span class="number">5</span>,
-        <span class="ident">PIPE</span> <span class="op">=&gt;</span> <span class="number">6</span>,
-        <span class="ident">CARET</span> <span class="op">=&gt;</span> <span class="number">7</span>,
-        <span class="ident">AMP</span> <span class="op">=&gt;</span> <span class="number">8</span>,
-        <span class="ident">MINUS</span> <span class="op">|</span> <span class="ident">PLUS</span> <span class="op">=&gt;</span> <span class="number">10</span>,
-        <span class="ident">STAR</span> <span class="op">|</span> <span class="ident">SLASH</span> <span class="op">|</span> <span class="ident">PERCENT</span> <span class="op">=&gt;</span> <span class="number">11</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>] <span class="op">=&gt;</span> <span class="number">1</span>,
+        <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[..=] <span class="op">=&gt;</span> <span class="number">2</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">==</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">!=</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>] <span class="op">=&gt;</span> <span class="number">5</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>] <span class="op">=&gt;</span> <span class="number">6</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">^</span>] <span class="op">=&gt;</span> <span class="number">7</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>] <span class="op">=&gt;</span> <span class="number">8</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">+</span>] <span class="op">=&gt;</span> <span class="number">10</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">/</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">%</span>] <span class="op">=&gt;</span> <span class="number">11</span>,
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="number">0</span>,
     };
     (<span class="ident">bp</span>, <span class="ident">Op</span>::<span class="ident">Simple</span>)
@@ -867,7 +867,7 @@
             <span class="ident">newly_dollar_open</span> <span class="op">=</span> <span class="bool-val">false</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">is_range</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">DOTDOT</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">DOTDOTEQ</span>;
+        <span class="kw">let</span> <span class="ident">is_range</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[..=];
         <span class="kw">let</span> (<span class="ident">op_bp</span>, <span class="ident">op</span>) <span class="op">=</span> <span class="ident">current_op</span>(<span class="ident">p</span>);
         <span class="kw">if</span> <span class="ident">op_bp</span> <span class="op">&lt;</span> <span class="ident">bp</span> {
             <span class="kw">break</span>;
@@ -901,10 +901,10 @@
         <span class="comment">//     let _ = &amp;1;</span>
         <span class="comment">//     let _ = &amp;mut &amp;f();</span>
         <span class="comment">// }</span>
-        <span class="ident">AMP</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>] <span class="op">=&gt;</span> {
             <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
             <span class="ident">p</span>.<span class="ident">bump</span>();
-            <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">MUT_KW</span>);
+            <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>]);
             <span class="ident">REF_EXPR</span>
         }
         <span class="comment">// test unary_expr</span>
@@ -913,14 +913,14 @@
         <span class="comment">//     !!true;</span>
         <span class="comment">//     --1;</span>
         <span class="comment">// }</span>
-        <span class="ident">STAR</span> <span class="op">|</span> <span class="ident">EXCL</span> <span class="op">|</span> <span class="ident">MINUS</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>] <span class="op">=&gt;</span> {
             <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
             <span class="ident">p</span>.<span class="ident">bump</span>();
             <span class="ident">PREFIX_EXPR</span>
         }
         <span class="comment">// test full_range_expr</span>
         <span class="comment">// fn foo() { xs[..]; }</span>
-        <span class="ident">DOTDOT</span> <span class="op">|</span> <span class="ident">DOTDOTEQ</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[..=] <span class="op">=&gt;</span> {
             <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
             <span class="ident">p</span>.<span class="ident">bump</span>();
             <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at_ts</span>(<span class="ident">EXPR_FIRST</span>) {
@@ -958,21 +958,21 @@
             <span class="comment">//         [] =&gt; {}</span>
             <span class="comment">//     }</span>
             <span class="comment">// }</span>
-            <span class="ident">L_PAREN</span> <span class="kw">if</span> <span class="ident">allow_calls</span> <span class="op">=&gt;</span> <span class="ident">call_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
-            <span class="ident">L_BRACK</span> <span class="kw">if</span> <span class="ident">allow_calls</span> <span class="op">=&gt;</span> <span class="ident">index_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
-            <span class="ident">DOT</span> <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">L_PAREN</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">COLONCOLON</span>) <span class="op">=&gt;</span> {
+            <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>] <span class="kw">if</span> <span class="ident">allow_calls</span> <span class="op">=&gt;</span> <span class="ident">call_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>] <span class="kw">if</span> <span class="ident">allow_calls</span> <span class="op">=&gt;</span> <span class="ident">index_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
+            <span class="macro">T</span><span class="macro">!</span>[.] <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[::]) <span class="op">=&gt;</span> {
                 <span class="ident">method_call_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>)
             }
-            <span class="ident">DOT</span> <span class="op">=&gt;</span> <span class="ident">field_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
+            <span class="macro">T</span><span class="macro">!</span>[.] <span class="op">=&gt;</span> <span class="ident">field_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
             <span class="comment">// test postfix_range</span>
             <span class="comment">// fn foo() { let x = 1..; }</span>
-            <span class="ident">DOTDOT</span> <span class="op">|</span> <span class="ident">DOTDOTEQ</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">EXPR_FIRST</span>.<span class="ident">contains</span>(<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>)) <span class="op">=&gt;</span> {
+            <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[..=] <span class="kw">if</span> <span class="op">!</span><span class="ident">EXPR_FIRST</span>.<span class="ident">contains</span>(<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>)) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
                 <span class="ident">p</span>.<span class="ident">bump</span>();
                 <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">RANGE_EXPR</span>)
             }
-            <span class="ident">QUESTION</span> <span class="op">=&gt;</span> <span class="ident">try_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
-            <span class="ident">AS_KW</span> <span class="op">=&gt;</span> <span class="ident">cast_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="question-mark">?</span>] <span class="op">=&gt;</span> <span class="ident">try_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="kw">as</span>] <span class="op">=&gt;</span> <span class="ident">cast_expr</span>(<span class="ident">p</span>, <span class="ident">lhs</span>),
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="kw">break</span>,
         };
         <span class="ident">allow_calls</span> <span class="op">=</span> <span class="bool-val">true</span>
@@ -988,7 +988,7 @@
 <span class="comment">//     f(&lt;Foo as Trait&gt;::func());</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">call_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_PAREN</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">arg_list</span>(<span class="ident">p</span>);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">CALL_EXPR</span>)
@@ -999,11 +999,11 @@
 <span class="comment">//     x[1][2];</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">index_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_BRACK</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">expr</span>(<span class="ident">p</span>);
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_BRACK</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;]&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">INDEX_EXPR</span>)
 }
 
@@ -1013,12 +1013,12 @@
 <span class="comment">//     y.bar::&lt;T&gt;(1, 2,);</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">method_call_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">DOT</span>) <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">L_PAREN</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">COLONCOLON</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[.]) <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[::]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">name_ref</span>(<span class="ident">p</span>);
     <span class="ident">type_args</span>::<span class="ident">opt_type_arg_list</span>(<span class="ident">p</span>, <span class="bool-val">true</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_PAREN</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>]) {
         <span class="ident">arg_list</span>(<span class="ident">p</span>);
     }
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">METHOD_CALL_EXPR</span>)
@@ -1038,7 +1038,7 @@
 <span class="comment">//     x.0x01;</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">field_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">DOT</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[.]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">IDENT</span>) {
@@ -1046,7 +1046,7 @@
     } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">INT_NUMBER</span>) {
         <span class="ident">p</span>.<span class="ident">bump</span>();
     } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">FLOAT_NUMBER</span>) {
-        <span class="comment">// FIXME: How to recover and instead parse INT + DOT?</span>
+        <span class="comment">// FIXME: How to recover and instead parse INT + T![.]?</span>
         <span class="ident">p</span>.<span class="ident">bump</span>();
     } <span class="kw">else</span> {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected field name or number&quot;</span>)
@@ -1059,7 +1059,7 @@
 <span class="comment">//     x?;</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">try_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">QUESTION</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="question-mark">?</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">TRY_EXPR</span>)
@@ -1073,7 +1073,7 @@
 <span class="comment">//     0x36 as u8 &lt;= 0x37;</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">cast_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">lhs</span>: <span class="ident">CompletedMarker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">AS_KW</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">as</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="comment">// Use type_no_bounds(), because cast expressions are not</span>
@@ -1083,20 +1083,20 @@
 }
 
 <span class="kw">fn</span> <span class="ident">arg_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_PAREN</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_PAREN</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) {
         <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at_ts</span>(<span class="ident">EXPR_FIRST</span>) {
             <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected expression&quot;</span>);
             <span class="kw">break</span>;
         }
         <span class="ident">expr</span>(<span class="ident">p</span>);
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_PAREN</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">COMMA</span>) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[,]) {
             <span class="kw">break</span>;
         }
     }
-    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">R_PAREN</span>);
+    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">ARG_LIST</span>);
 }
 
@@ -1108,15 +1108,15 @@
 <span class="comment">//     let _ = format!();</span>
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">path_expr</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">r</span>: <span class="ident">Restrictions</span>) <span class="op">-&gt;</span> (<span class="ident">CompletedMarker</span>, <span class="ident">BlockLike</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">paths</span>::<span class="ident">is_path_start</span>(<span class="ident">p</span>) <span class="op">||</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_ANGLE</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">paths</span>::<span class="ident">is_path_start</span>(<span class="ident">p</span>) <span class="op">||</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">paths</span>::<span class="ident">expr_path</span>(<span class="ident">p</span>);
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
-        <span class="ident">L_CURLY</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">r</span>.<span class="ident">forbid_structs</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="kw">if</span> <span class="op">!</span><span class="ident">r</span>.<span class="ident">forbid_structs</span> <span class="op">=&gt;</span> {
             <span class="ident">named_field_list</span>(<span class="ident">p</span>);
             (<span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">STRUCT_LIT</span>), <span class="ident">BlockLike</span>::<span class="ident">NotBlock</span>)
         }
-        <span class="ident">EXCL</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>] <span class="op">=&gt;</span> {
             <span class="kw">let</span> <span class="ident">block_like</span> <span class="op">=</span> <span class="ident">items</span>::<span class="ident">macro_call_after_excl</span>(<span class="ident">p</span>);
             (<span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">MACRO_CALL</span>), <span class="ident">block_like</span>)
         }
@@ -1131,36 +1131,36 @@
 <span class="comment">//     S { x, y: 32, ..Default::default() };</span>
 <span class="comment">// }</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">named_field_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
         <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
             <span class="comment">// test struct_literal_field_with_attr</span>
             <span class="comment">// fn main() {</span>
             <span class="comment">//     S { #[cfg(test)] field: 1 }</span>
             <span class="comment">// }</span>
-            <span class="ident">IDENT</span> <span class="op">|</span> <span class="ident">POUND</span> <span class="op">=&gt;</span> {
+            <span class="ident">IDENT</span> <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[#] <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
                 <span class="ident">attributes</span>::<span class="ident">outer_attributes</span>(<span class="ident">p</span>);
                 <span class="ident">name_ref</span>(<span class="ident">p</span>);
-                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">COLON</span>) {
+                <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
                     <span class="ident">expr</span>(<span class="ident">p</span>);
                 }
                 <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">NAMED_FIELD</span>);
             }
-            <span class="ident">DOTDOT</span> <span class="op">=&gt;</span> {
+            <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">=&gt;</span> {
                 <span class="ident">p</span>.<span class="ident">bump</span>();
                 <span class="ident">expr</span>(<span class="ident">p</span>);
             }
-            <span class="ident">L_CURLY</span> <span class="op">=&gt;</span> <span class="ident">error_block</span>(<span class="ident">p</span>, <span class="string">&quot;expected a field&quot;</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="op">=&gt;</span> <span class="ident">error_block</span>(<span class="ident">p</span>, <span class="string">&quot;expected a field&quot;</span>),
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="ident">p</span>.<span class="ident">err_and_bump</span>(<span class="string">&quot;expected identifier&quot;</span>),
         }
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
-            <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">COMMA</span>);
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
+            <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[,]);
         }
     }
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_CURLY</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">NAMED_FIELD_LIST</span>);
 }
 </pre></div>

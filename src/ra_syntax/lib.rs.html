@@ -256,11 +256,6 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Syntax Tree library used throughout the rust analyzer.</span>
 <span class="doccomment">//!</span>
@@ -443,10 +438,7 @@
 
     <span class="comment">// There&#39;s a bunch of traversal methods on `SyntaxNode`:</span>
     <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">expr_syntax</span>.<span class="ident">parent</span>(), <span class="prelude-val">Some</span>(<span class="ident">block</span>.<span class="ident">syntax</span>()));
-    <span class="macro">assert_eq</span><span class="macro">!</span>(
-        <span class="ident">block</span>.<span class="ident">syntax</span>().<span class="ident">first_child_or_token</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>()),
-        <span class="prelude-val">Some</span>(<span class="ident">SyntaxKind</span>::<span class="ident">L_CURLY</span>)
-    );
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">block</span>.<span class="ident">syntax</span>().<span class="ident">first_child_or_token</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>()), <span class="prelude-val">Some</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]));
     <span class="macro">assert_eq</span><span class="macro">!</span>(
         <span class="ident">expr_syntax</span>.<span class="ident">next_sibling_or_token</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>()),
         <span class="prelude-val">Some</span>(<span class="ident">SyntaxKind</span>::<span class="ident">WHITESPACE</span>)
@@ -455,9 +447,7 @@
     <span class="comment">// As well as some iterator helpers:</span>
     <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">expr_syntax</span>.<span class="ident">ancestors</span>().<span class="ident">find_map</span>(<span class="ident">ast</span>::<span class="ident">FnDef</span>::<span class="ident">cast</span>);
     <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">func</span>));
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">expr_syntax</span>
-        .<span class="ident">siblings_with_tokens</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>)
-        .<span class="ident">any</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">SyntaxKind</span>::<span class="ident">R_CURLY</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">expr_syntax</span>.<span class="ident">siblings_with_tokens</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>).<span class="ident">any</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]));
     <span class="macro">assert_eq</span><span class="macro">!</span>(
         <span class="ident">expr_syntax</span>.<span class="ident">descendants_with_tokens</span>().<span class="ident">count</span>(),
         <span class="number">8</span>, <span class="comment">// 5 tokens `1`, ` `, `+`, ` `, `!`</span>

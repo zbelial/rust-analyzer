@@ -539,7 +539,7 @@
             })
             .<span class="ident">next</span>()
             .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">as_token</span>())
-            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">node</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">COMMA</span>)
+            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">node</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[,])
     }
 
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">comma_node</span>) <span class="op">=</span> <span class="ident">nearby_comma</span>(<span class="ident">node</span>, <span class="ident">Direction</span>::<span class="ident">Prev</span>) {

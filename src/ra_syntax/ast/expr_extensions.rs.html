@@ -272,13 +272,15 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Various extension methods to ast Expr Nodes, which are hard to code-generate.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">SyntaxToken</span>, <span class="ident">SyntaxElement</span>, <span class="ident">SmolStr</span>,
     <span class="ident">ast</span>::{<span class="self">self</span>, <span class="ident">AstNode</span>, <span class="ident">AstChildren</span>, <span class="ident">children</span>, <span class="ident">child_opt</span>},
-    <span class="ident">SyntaxKind</span>::<span class="op">*</span>
+    <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>,
+    <span class="ident">T</span>
 };
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
@@ -309,7 +311,7 @@
 
 <span class="kw">impl</span> <span class="ident">ast</span>::<span class="ident">RefExpr</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_mut</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">MUT_KW</span>)
+        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>])
     }
 }
 
@@ -326,9 +328,9 @@
 <span class="kw">impl</span> <span class="ident">ast</span>::<span class="ident">PrefixExpr</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">op_kind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrefixOp</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">op_token</span>()<span class="question-mark">?</span>.<span class="ident">kind</span>() {
-            <span class="ident">STAR</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Deref</span>),
-            <span class="ident">EXCL</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Not</span>),
-            <span class="ident">MINUS</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Neg</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Deref</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Not</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">PrefixOp</span>::<span class="ident">Neg</span>),
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
         }
     }
@@ -408,37 +410,37 @@
     <span class="kw">fn</span> <span class="ident">op_details</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">SyntaxToken</span>, <span class="ident">BinOp</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">as_token</span>()).<span class="ident">find_map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> {
             <span class="kw">match</span> <span class="ident">c</span>.<span class="ident">kind</span>() {
-                <span class="ident">PIPEPIPE</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BooleanOr</span>)),
-                <span class="ident">AMPAMP</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BooleanAnd</span>)),
-                <span class="ident">EQEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">EqualityTest</span>)),
-                <span class="ident">NEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">NegatedEqualityTest</span>)),
-                <span class="ident">LTEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LesserEqualTest</span>)),
-                <span class="ident">GTEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">GreaterEqualTest</span>)),
-                <span class="ident">L_ANGLE</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LesserTest</span>)),
-                <span class="ident">R_ANGLE</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">GreaterTest</span>)),
-                <span class="ident">PLUS</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Addition</span>)),
-                <span class="ident">STAR</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Multiplication</span>)),
-                <span class="ident">MINUS</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Subtraction</span>)),
-                <span class="ident">SLASH</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Division</span>)),
-                <span class="ident">PERCENT</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Remainder</span>)),
-                <span class="ident">SHL</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LeftShift</span>)),
-                <span class="ident">SHR</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RightShift</span>)),
-                <span class="ident">CARET</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseXor</span>)),
-                <span class="ident">PIPE</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseOr</span>)),
-                <span class="ident">AMP</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseAnd</span>)),
-                <span class="ident">DOTDOT</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RangeRightOpen</span>)),
-                <span class="ident">DOTDOTEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RangeRightClosed</span>)),
-                <span class="ident">EQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Assignment</span>)),
-                <span class="ident">PLUSEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">AddAssign</span>)),
-                <span class="ident">SLASHEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">DivAssign</span>)),
-                <span class="ident">STAREQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">MulAssign</span>)),
-                <span class="ident">PERCENTEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RemAssign</span>)),
-                <span class="ident">SHREQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">ShrAssign</span>)),
-                <span class="ident">SHLEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">ShlAssign</span>)),
-                <span class="ident">MINUSEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">SubAssign</span>)),
-                <span class="ident">PIPEEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitOrAssign</span>)),
-                <span class="ident">AMPEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitAndAssign</span>)),
-                <span class="ident">CARETEQ</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitXorAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">||</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BooleanOr</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&amp;&amp;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BooleanAnd</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">==</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">EqualityTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">!=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">NegatedEqualityTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LesserEqualTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">GreaterEqualTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LesserTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">GreaterTest</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">+</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Addition</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Multiplication</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Subtraction</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">/</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Division</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">%</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Remainder</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;&lt;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">LeftShift</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;&gt;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RightShift</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">^</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseXor</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseOr</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitwiseAnd</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[..] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RangeRightOpen</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[..=] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RangeRightClosed</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">Assignment</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">+=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">AddAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">/=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">DivAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">*=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">MulAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">%=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">RemAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;&gt;=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">ShrAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;&lt;=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">ShlAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">-=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">SubAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">|=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitOrAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">&amp;=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitAndAssign</span>)),
+                <span class="macro">T</span><span class="macro">!</span>[<span class="op">^=</span>] <span class="op">=&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">BinOp</span>::<span class="ident">BitXorAssign</span>)),
                 <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
             }
         })
@@ -486,7 +488,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">is_repeat</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">SEMI</span>)
+        <span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[;])
     }
 }
 
@@ -533,7 +535,7 @@
                 <span class="ident">LiteralKind</span>::<span class="ident">FloatNumber</span> { <span class="ident">suffix</span>: <span class="ident">suffix</span> }
             }
             <span class="ident">STRING</span> <span class="op">|</span> <span class="ident">RAW_STRING</span> <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">String</span>,
-            <span class="ident">TRUE_KW</span> <span class="op">|</span> <span class="ident">FALSE_KW</span> <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">Bool</span>,
+            <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">true</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">false</span>] <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">Bool</span>,
             <span class="ident">BYTE_STRING</span> <span class="op">|</span> <span class="ident">RAW_BYTE_STRING</span> <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">ByteString</span>,
             <span class="ident">CHAR</span> <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">Char</span>,
             <span class="ident">BYTE</span> <span class="op">=&gt;</span> <span class="ident">LiteralKind</span>::<span class="ident">Byte</span>,

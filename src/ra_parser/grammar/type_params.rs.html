@@ -194,18 +194,18 @@
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">opt_type_param_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_ANGLE</span>) {
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]) {
         <span class="kw">return</span>;
     }
     <span class="ident">type_param_list</span>(<span class="ident">p</span>);
 }
 
 <span class="kw">fn</span> <span class="ident">type_param_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_ANGLE</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
 
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_ANGLE</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>]) {
         <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
 
         <span class="comment">// test generic_lifetime_type_attribute</span>
@@ -221,18 +221,18 @@
                 <span class="ident">p</span>.<span class="ident">err_and_bump</span>(<span class="string">&quot;expected type parameter&quot;</span>)
             }
         }
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_ANGLE</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">COMMA</span>) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>]) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[,]) {
             <span class="kw">break</span>;
         }
     }
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_ANGLE</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">TYPE_PARAM_LIST</span>);
 }
 
 <span class="kw">fn</span> <span class="ident">lifetime_param</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">m</span>: <span class="ident">Marker</span>) {
     <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">LIFETIME</span>));
     <span class="ident">p</span>.<span class="ident">bump</span>();
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
         <span class="ident">lifetime_bounds</span>(<span class="ident">p</span>);
     }
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">LIFETIME_PARAM</span>);
@@ -241,12 +241,12 @@
 <span class="kw">fn</span> <span class="ident">type_param</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">m</span>: <span class="ident">Marker</span>) {
     <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">IDENT</span>));
     <span class="ident">name</span>(<span class="ident">p</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
         <span class="ident">bounds</span>(<span class="ident">p</span>);
     }
     <span class="comment">// test type_param_default</span>
     <span class="comment">// struct S&lt;T = i32&gt;;</span>
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EQ</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]) {
         <span class="ident">p</span>.<span class="ident">bump</span>();
         <span class="ident">types</span>::<span class="ident">type_</span>(<span class="ident">p</span>)
     }
@@ -256,17 +256,17 @@
 <span class="comment">// test type_param_bounds</span>
 <span class="comment">// struct S&lt;T: &#39;a + ?Sized + (Copy)&gt;;</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">bounds</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]));
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">bounds_without_colon</span>(<span class="ident">p</span>);
 }
 
 <span class="kw">fn</span> <span class="ident">lifetime_bounds</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]));
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="kw">while</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">LIFETIME</span>) {
         <span class="ident">p</span>.<span class="ident">bump</span>();
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">PLUS</span>) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">+</span>]) {
             <span class="kw">break</span>;
         }
     }
@@ -274,7 +274,7 @@
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">bounds_without_colon_m</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">marker</span>: <span class="ident">Marker</span>) <span class="op">-&gt;</span> <span class="ident">CompletedMarker</span> {
     <span class="kw">while</span> <span class="ident">type_bound</span>(<span class="ident">p</span>) {
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">PLUS</span>) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">+</span>]) {
             <span class="kw">break</span>;
         }
     }
@@ -289,11 +289,11 @@
 
 <span class="kw">fn</span> <span class="ident">type_bound</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
-    <span class="kw">let</span> <span class="ident">has_paren</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">L_PAREN</span>);
-    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">QUESTION</span>);
+    <span class="kw">let</span> <span class="ident">has_paren</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>]);
+    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="question-mark">?</span>]);
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
         <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> <span class="ident">p</span>.<span class="ident">bump</span>(),
-        <span class="ident">FOR_KW</span> <span class="op">=&gt;</span> <span class="ident">types</span>::<span class="ident">for_type</span>(<span class="ident">p</span>),
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">for</span>] <span class="op">=&gt;</span> <span class="ident">types</span>::<span class="ident">for_type</span>(<span class="ident">p</span>),
         <span class="kw">_</span> <span class="kw">if</span> <span class="ident">paths</span>::<span class="ident">is_path_start</span>(<span class="ident">p</span>) <span class="op">=&gt;</span> <span class="ident">types</span>::<span class="ident">path_type_</span>(<span class="ident">p</span>, <span class="bool-val">false</span>),
         <span class="kw">_</span> <span class="op">=&gt;</span> {
             <span class="ident">m</span>.<span class="ident">abandon</span>(<span class="ident">p</span>);
@@ -301,7 +301,7 @@
         }
     }
     <span class="kw">if</span> <span class="ident">has_paren</span> {
-        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_PAREN</span>);
+        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]);
     }
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">TYPE_BOUND</span>);
 
@@ -317,7 +317,7 @@
 <span class="comment">//    &lt;T as Iterator&gt;::Item: &#39;a</span>
 <span class="comment">// {}</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">opt_where_clause</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">WHERE_KW</span>) {
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">where</span>]) {
         <span class="kw">return</span>;
     }
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
@@ -326,7 +326,7 @@
     <span class="kw">while</span> <span class="ident">is_where_predicate</span>(<span class="ident">p</span>) {
         <span class="ident">where_predicate</span>(<span class="ident">p</span>);
 
-        <span class="kw">let</span> <span class="ident">comma</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">COMMA</span>);
+        <span class="kw">let</span> <span class="ident">comma</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[,]);
 
         <span class="kw">if</span> <span class="ident">is_where_clause_end</span>(<span class="ident">p</span>) {
             <span class="kw">break</span>;
@@ -343,13 +343,13 @@
 <span class="kw">fn</span> <span class="ident">is_where_predicate</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
         <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
-        <span class="ident">IMPL_KW</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ] <span class="op">=&gt;</span> <span class="bool-val">false</span>,
         <span class="ident">token</span> <span class="op">=&gt;</span> <span class="ident">types</span>::<span class="ident">TYPE_FIRST</span>.<span class="ident">contains</span>(<span class="ident">token</span>),
     }
 }
 
 <span class="kw">fn</span> <span class="ident">is_where_clause_end</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-    <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">L_CURLY</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">SEMI</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="ident">EQ</span>
+    <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[;] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">current</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>]
 }
 
 <span class="kw">fn</span> <span class="ident">where_predicate</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
@@ -357,13 +357,13 @@
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
         <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> {
             <span class="ident">p</span>.<span class="ident">bump</span>();
-            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
                 <span class="ident">bounds</span>(<span class="ident">p</span>);
             } <span class="kw">else</span> {
                 <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected colon&quot;</span>);
             }
         }
-        <span class="ident">IMPL_KW</span> <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ] <span class="op">=&gt;</span> {
             <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected lifetime or type&quot;</span>);
         }
         <span class="kw">_</span> <span class="op">=&gt;</span> {
@@ -374,7 +374,7 @@
             <span class="comment">// { }</span>
             <span class="ident">types</span>::<span class="ident">type_</span>(<span class="ident">p</span>);
 
-            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
                 <span class="ident">bounds</span>(<span class="ident">p</span>);
             } <span class="kw">else</span> {
                 <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected colon&quot;</span>);

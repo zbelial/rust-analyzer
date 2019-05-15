@@ -109,7 +109,7 @@
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">is_path_start</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">Parser</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
-        <span class="ident">IDENT</span> <span class="op">|</span> <span class="ident">SELF_KW</span> <span class="op">|</span> <span class="ident">SUPER_KW</span> <span class="op">|</span> <span class="ident">CRATE_KW</span> <span class="op">|</span> <span class="ident">COLONCOLON</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+        <span class="ident">IDENT</span> <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">super</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">crate</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[::] <span class="op">=&gt;</span> <span class="bool-val">true</span>,
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
     }
 }
@@ -139,10 +139,10 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">qual</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">PATH</span>);
     <span class="kw">loop</span> {
         <span class="kw">let</span> <span class="ident">use_tree</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) {
-            <span class="ident">STAR</span> <span class="op">|</span> <span class="ident">L_CURLY</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+            <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">*</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="op">=&gt;</span> <span class="bool-val">true</span>,
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
         };
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLONCOLON</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">use_tree</span> {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[::]) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">use_tree</span> {
             <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">qual</span>.<span class="ident">precede</span>(<span class="ident">p</span>);
             <span class="ident">p</span>.<span class="ident">bump</span>();
             <span class="ident">path_segment</span>(<span class="ident">p</span>, <span class="ident">mode</span>, <span class="bool-val">false</span>);
@@ -159,19 +159,19 @@
     <span class="comment">// test qual_paths</span>
     <span class="comment">// type X = &lt;A as B&gt;::Output;</span>
     <span class="comment">// fn foo() { &lt;usize as Default&gt;::default(); }</span>
-    <span class="kw">if</span> <span class="ident">first</span> <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">L_ANGLE</span>) {
+    <span class="kw">if</span> <span class="ident">first</span> <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]) {
         <span class="ident">types</span>::<span class="ident">type_</span>(<span class="ident">p</span>);
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">AS_KW</span>) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">as</span>]) {
             <span class="kw">if</span> <span class="ident">is_path_start</span>(<span class="ident">p</span>) {
                 <span class="ident">types</span>::<span class="ident">path_type</span>(<span class="ident">p</span>);
             } <span class="kw">else</span> {
                 <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected a trait&quot;</span>);
             }
         }
-        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_ANGLE</span>);
+        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>]);
     } <span class="kw">else</span> {
         <span class="kw">if</span> <span class="ident">first</span> {
-            <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">COLONCOLON</span>);
+            <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[::]);
         }
         <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
             <span class="ident">IDENT</span> <span class="op">=&gt;</span> {
@@ -180,7 +180,7 @@
             }
             <span class="comment">// test crate_path</span>
             <span class="comment">// use crate::foo;</span>
-            <span class="ident">SELF_KW</span> <span class="op">|</span> <span class="ident">SUPER_KW</span> <span class="op">|</span> <span class="ident">CRATE_KW</span> <span class="op">=&gt;</span> <span class="ident">p</span>.<span class="ident">bump</span>(),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">super</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">crate</span>] <span class="op">=&gt;</span> <span class="ident">p</span>.<span class="ident">bump</span>(),
             <span class="kw">_</span> <span class="op">=&gt;</span> {
                 <span class="ident">p</span>.<span class="ident">err_recover</span>(<span class="string">&quot;expected identifier&quot;</span>, <span class="ident">items</span>::<span class="ident">ITEM_RECOVERY_SET</span>);
             }
@@ -195,7 +195,7 @@
         <span class="ident">Mode</span>::<span class="ident">Type</span> <span class="op">=&gt;</span> {
             <span class="comment">// test path_fn_trait_args</span>
             <span class="comment">// type F = Box&lt;Fn(x: i32) -&gt; ()&gt;;</span>
-            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_PAREN</span>) {
+            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>]) {
                 <span class="ident">params</span>::<span class="ident">param_list_opt_patterns</span>(<span class="ident">p</span>);
                 <span class="ident">opt_fn_ret_type</span>(<span class="ident">p</span>);
             } <span class="kw">else</span> {

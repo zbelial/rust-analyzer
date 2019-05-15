@@ -176,6 +176,7 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
+<span id="179">179</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">classes</span>;
 <span class="kw">mod</span> <span class="ident">comments</span>;
@@ -186,6 +187,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">SyntaxKind</span>::{<span class="self">self</span>, <span class="kw-2">*</span>},
     <span class="ident">TextUnit</span>,
+    <span class="ident">T</span>,
 };
 
 <span class="kw">use</span> <span class="self">self</span>::{
@@ -269,16 +271,16 @@
     <span class="kw">match</span> <span class="ident">c</span> {
         <span class="comment">// Possiblily multi-byte tokens,</span>
         <span class="comment">// but we only produce single byte token now</span>
-        <span class="comment">// DOTDOTDOT, DOTDOT, DOTDOTEQ, DOT</span>
-        <span class="string">&#39;.&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">DOT</span>,
-        <span class="comment">// COLONCOLON COLON</span>
-        <span class="string">&#39;:&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">COLON</span>,
-        <span class="comment">// EQEQ FATARROW EQ</span>
-        <span class="string">&#39;=&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">EQ</span>,
-        <span class="comment">// NEQ EXCL</span>
-        <span class="string">&#39;!&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">EXCL</span>,
-        <span class="comment">// THIN_ARROW MINUS</span>
-        <span class="string">&#39;-&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">MINUS</span>,
+        <span class="comment">// T![...], T![..], T![..=], T![.]</span>
+        <span class="string">&#39;.&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[.],
+        <span class="comment">// T![::] T![:]</span>
+        <span class="string">&#39;:&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[:],
+        <span class="comment">// T![==] FATARROW T![=]</span>
+        <span class="string">&#39;=&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>],
+        <span class="comment">// T![!=] T![!]</span>
+        <span class="string">&#39;!&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>],
+        <span class="comment">// T![-&gt;] T![-]</span>
+        <span class="string">&#39;-&#39;</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>],
 
         <span class="comment">// If the character is an ident start not followed by another single</span>
         <span class="comment">// quote, then this is a lifetime name:</span>
@@ -327,8 +329,8 @@
             <span class="ident">ptr</span>.<span class="ident">bump</span>();
             <span class="bool-val">true</span>
         }
-        (<span class="string">&#39;_&#39;</span>, <span class="prelude-val">None</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">UNDERSCORE</span>,
-        (<span class="string">&#39;_&#39;</span>, <span class="prelude-val">Some</span>(<span class="ident">c</span>)) <span class="kw">if</span> <span class="op">!</span><span class="ident">is_ident_continue</span>(<span class="ident">c</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">UNDERSCORE</span>,
+        (<span class="string">&#39;_&#39;</span>, <span class="prelude-val">None</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">_</span>],
+        (<span class="string">&#39;_&#39;</span>, <span class="prelude-val">Some</span>(<span class="ident">c</span>)) <span class="kw">if</span> <span class="op">!</span><span class="ident">is_ident_continue</span>(<span class="ident">c</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">_</span>],
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
     };
     <span class="ident">ptr</span>.<span class="ident">bump_while</span>(<span class="ident">is_ident_continue</span>);

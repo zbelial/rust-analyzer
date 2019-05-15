@@ -182,27 +182,27 @@
 }
 
 <span class="kw">fn</span> <span class="ident">list_</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>, <span class="ident">flavor</span>: <span class="ident">Flavor</span>) {
-    <span class="kw">let</span> (<span class="ident">bra</span>, <span class="ident">ket</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() { (<span class="ident">L_PAREN</span>, <span class="ident">R_PAREN</span>) } <span class="kw">else</span> { (<span class="ident">PIPE</span>, <span class="ident">PIPE</span>) };
+    <span class="kw">let</span> (<span class="ident">bra</span>, <span class="ident">ket</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() { (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) } <span class="kw">else</span> { (<span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="op">|</span>]) };
     <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">bra</span>));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="kw">if</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() {
         <span class="ident">opt_self_param</span>(<span class="ident">p</span>);
     }
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">ket</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span>(<span class="ident">flavor</span>.<span class="ident">type_required</span>() <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">DOTDOTDOT</span>)) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">ket</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span>(<span class="ident">flavor</span>.<span class="ident">type_required</span>() <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[...])) {
         <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at_ts</span>(<span class="ident">VALUE_PARAMETER_FIRST</span>) {
             <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected value parameter&quot;</span>);
             <span class="kw">break</span>;
         }
         <span class="ident">value_parameter</span>(<span class="ident">p</span>, <span class="ident">flavor</span>);
         <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">ket</span>) {
-            <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">COMMA</span>);
+            <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[,]);
         }
     }
     <span class="comment">// test param_list_vararg</span>
     <span class="comment">// extern &quot;C&quot; { fn printf(format: *const i8, ...) -&gt; i32; }</span>
     <span class="kw">if</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() {
-        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">DOTDOTDOT</span>);
+        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[...]);
     }
     <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">ket</span>);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">PARAM_LIST</span>);
@@ -215,7 +215,7 @@
     <span class="kw">match</span> <span class="ident">flavor</span> {
         <span class="ident">Flavor</span>::<span class="ident">OptionalType</span> <span class="op">|</span> <span class="ident">Flavor</span>::<span class="ident">Normal</span> <span class="op">=&gt;</span> {
             <span class="ident">patterns</span>::<span class="ident">pattern</span>(<span class="ident">p</span>);
-            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) <span class="op">||</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() {
+            <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) <span class="op">||</span> <span class="ident">flavor</span>.<span class="ident">type_required</span>() {
                 <span class="ident">types</span>::<span class="ident">ascription</span>(<span class="ident">p</span>)
             }
         }
@@ -231,10 +231,10 @@
             <span class="comment">// trait Foo {</span>
             <span class="comment">//     fn bar(_: u64, mut x: i32);</span>
             <span class="comment">// }</span>
-            <span class="kw">if</span> (<span class="ident">la0</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="ident">UNDERSCORE</span>) <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">COLON</span>
-                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="ident">MUT_KW</span> <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="ident">COLON</span>
-                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="ident">AMP</span> <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="ident">COLON</span>
-                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="ident">AMP</span> <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">MUT_KW</span> <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la3</span> <span class="op">==</span> <span class="ident">COLON</span>
+            <span class="kw">if</span> (<span class="ident">la0</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw">_</span>]) <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[:]
+                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>] <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[:]
+                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>] <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[:]
+                <span class="op">||</span> <span class="ident">la0</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>] <span class="op">&amp;&amp;</span> <span class="ident">la1</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>] <span class="op">&amp;&amp;</span> <span class="ident">la2</span> <span class="op">==</span> <span class="ident">IDENT</span> <span class="op">&amp;&amp;</span> <span class="ident">la3</span> <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[:]
             {
                 <span class="ident">patterns</span>::<span class="ident">pattern</span>(<span class="ident">p</span>);
                 <span class="ident">types</span>::<span class="ident">ascription</span>(<span class="ident">p</span>);
@@ -256,16 +256,16 @@
 <span class="comment">// }</span>
 <span class="kw">fn</span> <span class="ident">opt_self_param</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
     <span class="kw">let</span> <span class="ident">m</span>;
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">SELF_KW</span>) <span class="op">||</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">MUT_KW</span>) <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">SELF_KW</span> {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>]) <span class="op">||</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>]) <span class="op">&amp;&amp;</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>] {
         <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
-        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">MUT_KW</span>);
-        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">SELF_KW</span>);
+        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>]);
+        <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>]);
         <span class="comment">// test arb_self_types</span>
         <span class="comment">// impl S {</span>
         <span class="comment">//     fn a(self: &amp;Self) {}</span>
         <span class="comment">//     fn b(mut self: Box&lt;Self&gt;) {}</span>
         <span class="comment">// }</span>
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
             <span class="ident">types</span>::<span class="ident">ascription</span>(<span class="ident">p</span>);
         }
     } <span class="kw">else</span> {
@@ -273,10 +273,10 @@
         <span class="kw">let</span> <span class="ident">la2</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>);
         <span class="kw">let</span> <span class="ident">la3</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">3</span>);
         <span class="kw">let</span> <span class="ident">n_toks</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">p</span>.<span class="ident">current</span>(), <span class="ident">la1</span>, <span class="ident">la2</span>, <span class="ident">la3</span>) {
-            (<span class="ident">AMP</span>, <span class="ident">SELF_KW</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">2</span>,
-            (<span class="ident">AMP</span>, <span class="ident">MUT_KW</span>, <span class="ident">SELF_KW</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">3</span>,
-            (<span class="ident">AMP</span>, <span class="ident">LIFETIME</span>, <span class="ident">SELF_KW</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">3</span>,
-            (<span class="ident">AMP</span>, <span class="ident">LIFETIME</span>, <span class="ident">MUT_KW</span>, <span class="ident">SELF_KW</span>) <span class="op">=&gt;</span> <span class="number">4</span>,
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>], <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">2</span>,
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>], <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">3</span>,
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="ident">LIFETIME</span>, <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>], <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="number">3</span>,
+            (<span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">&amp;</span>], <span class="ident">LIFETIME</span>, <span class="macro">T</span><span class="macro">!</span>[<span class="kw-2">mut</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="self">self</span>]) <span class="op">=&gt;</span> <span class="number">4</span>,
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="kw">return</span>,
         };
         <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
@@ -285,8 +285,8 @@
         }
     }
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">SELF_PARAM</span>);
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_PAREN</span>) {
-        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">COMMA</span>);
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) {
+        <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[,]);
     }
 }
 </pre></div>

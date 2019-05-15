@@ -339,7 +339,7 @@
 
 <span class="kw">use</span> <span class="ident">arrayvec</span>::<span class="ident">ArrayVec</span>;
 <span class="kw">use</span> <span class="ident">ra_text_edit</span>::<span class="ident">TextEditBuilder</span>;
-<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">AstNode</span>, <span class="ident">TreeArc</span>, <span class="ident">ast</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">SyntaxElement</span>, <span class="ident">SourceFile</span>, <span class="ident">InsertPosition</span>, <span class="ident">Direction</span>};
+<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">AstNode</span>, <span class="ident">TreeArc</span>, <span class="ident">ast</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">SyntaxElement</span>, <span class="ident">SourceFile</span>, <span class="ident">InsertPosition</span>, <span class="ident">Direction</span>, <span class="ident">T</span>};
 <span class="kw">use</span> <span class="ident">ra_fmt</span>::<span class="ident">leading_indent</span>;
 <span class="kw">use</span> <span class="ident">hir</span>::<span class="ident">Name</span>;
 
@@ -386,7 +386,7 @@
 
     <span class="kw">fn</span> <span class="ident">do_make_multiline</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">l_curly</span> <span class="op">=</span>
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">L_CURLY</span>) {
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
                 <span class="prelude-val">Some</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">it</span>,
                 <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span>,
             };
@@ -461,7 +461,7 @@
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">comma</span>) <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">anchor</span>
                     .<span class="ident">syntax</span>()
                     .<span class="ident">siblings_with_tokens</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>)
-                    .<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">COMMA</span>)
+                    .<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[,])
                 {
                     <span class="ident">InsertPosition</span>::<span class="ident">After</span>(<span class="ident">comma</span>)
                 } <span class="kw">else</span> {
@@ -491,7 +491,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">l_curly</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SyntaxElement</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">L_CURLY</span>)
+        <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>])
     }
 }
 
@@ -525,7 +525,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">l_curly</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SyntaxElement</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">L_CURLY</span>)
+        <span class="self">self</span>.<span class="ident">ast</span>().<span class="ident">syntax</span>().<span class="ident">children_with_tokens</span>().<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>])
     }
 }
 
@@ -627,7 +627,7 @@
 
 <span class="kw">mod</span> <span class="ident">tokens</span> {
     <span class="kw">use</span> <span class="ident">once_cell</span>::<span class="ident">sync</span>::<span class="ident">Lazy</span>;
-    <span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">AstNode</span>, <span class="ident">SourceFile</span>, <span class="ident">TreeArc</span>, <span class="ident">SyntaxToken</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>};
+    <span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">AstNode</span>, <span class="ident">SourceFile</span>, <span class="ident">TreeArc</span>, <span class="ident">SyntaxToken</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">T</span>};
 
     <span class="kw">static</span> <span class="ident">SOURCE_FILE</span>: <span class="ident">Lazy</span><span class="op">&lt;</span><span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="ident">Lazy</span>::<span class="ident">new</span>(<span class="op">||</span> <span class="ident">SourceFile</span>::<span class="ident">parse</span>(<span class="string">&quot;,\n; ;&quot;</span>));
 
@@ -636,7 +636,7 @@
             .<span class="ident">syntax</span>()
             .<span class="ident">descendants_with_tokens</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">as_token</span>())
-            .<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">COMMA</span>)
+            .<span class="ident">find</span>(<span class="op">|</span><span class="ident">it</span><span class="op">|</span> <span class="ident">it</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[,])
             .<span class="ident">unwrap</span>()
     }
 

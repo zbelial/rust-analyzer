@@ -82,7 +82,7 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashSet</span>;
 
-<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">ast</span>, <span class="ident">AstNode</span>, <span class="ident">TextRange</span>, <span class="ident">Direction</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">SyntaxElement</span>};
+<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">ast</span>, <span class="ident">AstNode</span>, <span class="ident">TextRange</span>, <span class="ident">Direction</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">SyntaxElement</span>, <span class="ident">T</span>};
 <span class="kw">use</span> <span class="ident">ra_db</span>::<span class="ident">SourceDatabase</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">FileId</span>, <span class="ident">db</span>::<span class="ident">RootDatabase</span>};
@@ -122,7 +122,7 @@
                                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">range_end</span> <span class="op">=</span> <span class="ident">name_ref</span>.<span class="ident">syntax</span>().<span class="ident">range</span>().<span class="ident">end</span>();
                                 <span class="kw">for</span> <span class="ident">sibling</span> <span class="kw">in</span> <span class="ident">path</span>.<span class="ident">syntax</span>().<span class="ident">siblings_with_tokens</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>) {
                                     <span class="kw">match</span> <span class="ident">sibling</span>.<span class="ident">kind</span>() {
-                                        <span class="ident">EXCL</span> <span class="op">|</span> <span class="ident">IDENT</span> <span class="op">=&gt;</span> <span class="ident">range_end</span> <span class="op">=</span> <span class="ident">sibling</span>.<span class="ident">range</span>().<span class="ident">end</span>(),
+                                        <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>] <span class="op">|</span> <span class="ident">IDENT</span> <span class="op">=&gt;</span> <span class="ident">range_end</span> <span class="op">=</span> <span class="ident">sibling</span>.<span class="ident">range</span>().<span class="ident">end</span>(),
                                         <span class="kw">_</span> <span class="op">=&gt;</span> (),
                                     }
                                 }

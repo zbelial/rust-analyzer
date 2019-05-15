@@ -1017,8 +1017,8 @@
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">T</span> {
     (;) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">SEMI</span> };
     (,) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">COMMA</span> };
-    (() <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">L_PAREN</span> };
-    ()) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">R_PAREN</span> };
+    (<span class="string">&#39;(&#39;</span>) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">L_PAREN</span> };
+    (<span class="string">&#39;)&#39;</span>) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">R_PAREN</span> };
     (<span class="string">&#39;{&#39;</span>) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">L_CURLY</span> };
     (<span class="string">&#39;}&#39;</span>) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">R_CURLY</span> };
     (<span class="string">&#39;[&#39;</span>) <span class="op">=&gt;</span> { <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">SyntaxKind</span>::<span class="ident">L_BRACK</span> };

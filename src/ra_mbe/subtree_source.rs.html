@@ -344,7 +344,7 @@
 <span id="344">344</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_parser</span>::{<span class="ident">TokenSource</span>};
-<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">classify_literal</span>, <span class="ident">SmolStr</span>, <span class="ident">SyntaxKind</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>};
+<span class="kw">use</span> <span class="ident">ra_syntax</span>::{<span class="ident">classify_literal</span>, <span class="ident">SmolStr</span>, <span class="ident">SyntaxKind</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">T</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::{<span class="ident">RefCell</span>};
 
 <span class="comment">// A Sequece of Token,</span>
@@ -629,9 +629,9 @@
 
 <span class="kw">fn</span> <span class="ident">convert_delim</span>(<span class="ident">d</span>: <span class="ident">tt</span>::<span class="ident">Delimiter</span>, <span class="ident">closing</span>: <span class="ident">bool</span>) <span class="op">-&gt;</span> <span class="ident">TtToken</span> {
     <span class="kw">let</span> (<span class="ident">kinds</span>, <span class="ident">texts</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">d</span> {
-        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Parenthesis</span> <span class="op">=&gt;</span> ([<span class="ident">L_PAREN</span>, <span class="ident">R_PAREN</span>], <span class="string">&quot;()&quot;</span>),
-        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Brace</span> <span class="op">=&gt;</span> ([<span class="ident">L_CURLY</span>, <span class="ident">R_CURLY</span>], <span class="string">&quot;{}&quot;</span>),
-        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Bracket</span> <span class="op">=&gt;</span> ([<span class="ident">L_BRACK</span>, <span class="ident">R_BRACK</span>], <span class="string">&quot;[]&quot;</span>),
+        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Parenthesis</span> <span class="op">=&gt;</span> ([<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]], <span class="string">&quot;()&quot;</span>),
+        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Brace</span> <span class="op">=&gt;</span> ([<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]], <span class="string">&quot;{}&quot;</span>),
+        <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Bracket</span> <span class="op">=&gt;</span> ([<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;]&#39;</span>]], <span class="string">&quot;[]&quot;</span>),
         <span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="prelude-val">None</span> <span class="op">=&gt;</span> ([<span class="ident">L_DOLLAR</span>, <span class="ident">R_DOLLAR</span>], <span class="string">&quot;&quot;</span>),
     };
 
@@ -644,8 +644,8 @@
 <span class="kw">fn</span> <span class="ident">convert_literal</span>(<span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="ident">tt</span>::<span class="ident">Literal</span>) <span class="op">-&gt;</span> <span class="ident">TtToken</span> {
     <span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span>
         <span class="ident">classify_literal</span>(<span class="kw-2">&amp;</span><span class="ident">l</span>.<span class="ident">text</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">tkn</span><span class="op">|</span> <span class="ident">tkn</span>.<span class="ident">kind</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="kw">match</span> <span class="ident">l</span>.<span class="ident">text</span>.<span class="ident">as_ref</span>() {
-            <span class="string">&quot;true&quot;</span> <span class="op">=&gt;</span> <span class="ident">SyntaxKind</span>::<span class="ident">TRUE_KW</span>,
-            <span class="string">&quot;false&quot;</span> <span class="op">=&gt;</span> <span class="ident">SyntaxKind</span>::<span class="ident">FALSE_KW</span>,
+            <span class="string">&quot;true&quot;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">true</span>],
+            <span class="string">&quot;false&quot;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">false</span>],
             <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Fail to convert given literal {:#?}&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">l</span>),
         });
 
@@ -665,11 +665,11 @@
 <span class="kw">fn</span> <span class="ident">convert_punct</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">tt</span>::<span class="ident">Punct</span>) <span class="op">-&gt;</span> <span class="ident">TtToken</span> {
     <span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">char</span> {
         <span class="comment">// lexer may produce compound tokens for these ones</span>
-        <span class="string">&#39;.&#39;</span> <span class="op">=&gt;</span> <span class="ident">DOT</span>,
-        <span class="string">&#39;:&#39;</span> <span class="op">=&gt;</span> <span class="ident">COLON</span>,
-        <span class="string">&#39;=&#39;</span> <span class="op">=&gt;</span> <span class="ident">EQ</span>,
-        <span class="string">&#39;!&#39;</span> <span class="op">=&gt;</span> <span class="ident">EXCL</span>,
-        <span class="string">&#39;-&#39;</span> <span class="op">=&gt;</span> <span class="ident">MINUS</span>,
+        <span class="string">&#39;.&#39;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[.],
+        <span class="string">&#39;:&#39;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[:],
+        <span class="string">&#39;=&#39;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>],
+        <span class="string">&#39;!&#39;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>],
+        <span class="string">&#39;-&#39;</span> <span class="op">=&gt;</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">-</span>],
         <span class="ident">c</span> <span class="op">=&gt;</span> <span class="ident">SyntaxKind</span>::<span class="ident">from_char</span>(<span class="ident">c</span>).<span class="ident">unwrap</span>(),
     };
     <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> {

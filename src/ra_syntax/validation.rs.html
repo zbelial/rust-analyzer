@@ -106,6 +106,7 @@
 <span id="106">106</span>
 <span id="107">107</span>
 <span id="108">108</span>
+<span id="109">109</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">unescape</span>;
 
@@ -114,9 +115,10 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">SourceFile</span>, <span class="ident">SyntaxError</span>, <span class="ident">AstNode</span>, <span class="ident">SyntaxNode</span>, <span class="ident">TextUnit</span>,
-    <span class="ident">SyntaxKind</span>::{<span class="ident">L_CURLY</span>, <span class="ident">R_CURLY</span>, <span class="ident">BYTE</span>, <span class="ident">BYTE_STRING</span>, <span class="ident">STRING</span>, <span class="ident">CHAR</span>},
+    <span class="ident">SyntaxKind</span>::{<span class="ident">BYTE</span>, <span class="ident">BYTE_STRING</span>, <span class="ident">STRING</span>, <span class="ident">CHAR</span>},
     <span class="ident">ast</span>,
     <span class="ident">algo</span>::<span class="ident">visit</span>::{<span class="ident">visitor_ctx</span>, <span class="ident">VisitorCtx</span>},
+    <span class="ident">T</span>,
 };
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">unescape</span>::<span class="ident">EscapeError</span>;
@@ -192,8 +194,8 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stack</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
     <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">root</span>.<span class="ident">descendants</span>() {
         <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">kind</span>() {
-            <span class="ident">L_CURLY</span> <span class="op">=&gt;</span> <span class="ident">stack</span>.<span class="ident">push</span>(<span class="ident">node</span>),
-            <span class="ident">R_CURLY</span> <span class="op">=&gt;</span> {
+            <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="op">=&gt;</span> <span class="ident">stack</span>.<span class="ident">push</span>(<span class="ident">node</span>),
+            <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>] <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pair</span>) <span class="op">=</span> <span class="ident">stack</span>.<span class="ident">pop</span>() {
                     <span class="macro">assert_eq</span><span class="macro">!</span>(
                         <span class="ident">node</span>.<span class="ident">parent</span>(),

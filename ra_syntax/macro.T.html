@@ -2,8 +2,8 @@
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">T</span> {
     ( ; ) <span class="op">=&gt;</span> { ... };
     ( , ) <span class="op">=&gt;</span> { ... };
-    (
-(  ) <span class="op">=&gt;</span> { $ <span class="kw">crate</span> :: <span class="ident">SyntaxKind</span> :: <span class="ident">L_PAREN</span> } ; (  ) ) <span class="op">=&gt;</span> { ... };
+    ( <span class="string">&#39;(&#39;</span> ) <span class="op">=&gt;</span> { ... };
+    ( <span class="string">&#39;)&#39;</span> ) <span class="op">=&gt;</span> { ... };
     ( <span class="string">&#39;{&#39;</span> ) <span class="op">=&gt;</span> { ... };
     ( <span class="string">&#39;}&#39;</span> ) <span class="op">=&gt;</span> { ... };
     ( <span class="string">&#39;[&#39;</span> ) <span class="op">=&gt;</span> { ... };

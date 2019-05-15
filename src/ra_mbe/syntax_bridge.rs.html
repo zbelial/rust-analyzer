@@ -419,14 +419,11 @@
 <span id="419">419</span>
 <span id="420">420</span>
 <span id="421">421</span>
-<span id="422">422</span>
-<span id="423">423</span>
-<span id="424">424</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_parser</span>::{<span class="ident">TreeSink</span>, <span class="ident">ParseError</span>};
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
     <span class="ident">AstNode</span>, <span class="ident">SyntaxNode</span>, <span class="ident">TextRange</span>, <span class="ident">SyntaxKind</span>, <span class="ident">SmolStr</span>, <span class="ident">SyntaxTreeBuilder</span>, <span class="ident">TreeArc</span>, <span class="ident">SyntaxElement</span>,
-    <span class="ident">ast</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">TextUnit</span>
+    <span class="ident">ast</span>, <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>, <span class="ident">TextUnit</span>, <span class="ident">T</span>
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">subtree_source</span>::{<span class="ident">SubtreeTokenSource</span>, <span class="ident">Querier</span>};
@@ -636,9 +633,9 @@
     <span class="kw">let</span> <span class="ident">first_child</span> <span class="op">=</span> <span class="ident">tt</span>.<span class="ident">first_child_or_token</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">last_child</span> <span class="op">=</span> <span class="ident">tt</span>.<span class="ident">last_child_or_token</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> (<span class="ident">delimiter</span>, <span class="ident">skip_first</span>) <span class="op">=</span> <span class="kw">match</span> (<span class="ident">first_child</span>.<span class="ident">kind</span>(), <span class="ident">last_child</span>.<span class="ident">kind</span>()) {
-        (<span class="ident">L_PAREN</span>, <span class="ident">R_PAREN</span>) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Parenthesis</span>, <span class="bool-val">true</span>),
-        (<span class="ident">L_CURLY</span>, <span class="ident">R_CURLY</span>) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Brace</span>, <span class="bool-val">true</span>),
-        (<span class="ident">L_BRACK</span>, <span class="ident">R_BRACK</span>) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Bracket</span>, <span class="bool-val">true</span>),
+        (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Parenthesis</span>, <span class="bool-val">true</span>),
+        (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Brace</span>, <span class="bool-val">true</span>),
+        (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;]&#39;</span>]) <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="ident">Bracket</span>, <span class="bool-val">true</span>),
         <span class="kw">_</span> <span class="op">=&gt;</span> (<span class="ident">tt</span>::<span class="ident">Delimiter</span>::<span class="prelude-val">None</span>, <span class="bool-val">false</span>),
     };
 
@@ -673,23 +670,22 @@
 
                     <span class="ident">token_trees</span>.<span class="ident">push</span>(<span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Punct</span> { <span class="ident">char</span>, <span class="ident">spacing</span> }).<span class="ident">into</span>());
                 } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="ident">child</span>: <span class="ident">tt</span>::<span class="ident">TokenTree</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">SyntaxKind</span>::<span class="ident">TRUE_KW</span>
-                        <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">SyntaxKind</span>::<span class="ident">FALSE_KW</span>
-                    {
-                        <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Literal</span> { <span class="ident">text</span>: <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>() }).<span class="ident">into</span>()
-                    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>().<span class="ident">is_keyword</span>()
-                        <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">IDENT</span>
-                        <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">LIFETIME</span>
-                    {
-                        <span class="kw">let</span> <span class="ident">relative_range</span> <span class="op">=</span> <span class="ident">token</span>.<span class="ident">range</span>() <span class="op">-</span> <span class="ident">global_offset</span>;
-                        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">token_map</span>.<span class="ident">alloc</span>(<span class="ident">relative_range</span>);
-                        <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>();
-                        <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Ident</span> { <span class="ident">text</span>, <span class="ident">id</span> }).<span class="ident">into</span>()
-                    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>().<span class="ident">is_literal</span>() {
-                        <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Literal</span> { <span class="ident">text</span>: <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>() }).<span class="ident">into</span>()
-                    } <span class="kw">else</span> {
-                        <span class="kw">return</span> <span class="prelude-val">None</span>;
-                    };
+                    <span class="kw">let</span> <span class="ident">child</span>: <span class="ident">tt</span>::<span class="ident">TokenTree</span> <span class="op">=</span>
+                        <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">true</span>] <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="bool-val">false</span>] {
+                            <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Literal</span> { <span class="ident">text</span>: <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>() }).<span class="ident">into</span>()
+                        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>().<span class="ident">is_keyword</span>()
+                            <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">IDENT</span>
+                            <span class="op">||</span> <span class="ident">token</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">LIFETIME</span>
+                        {
+                            <span class="kw">let</span> <span class="ident">relative_range</span> <span class="op">=</span> <span class="ident">token</span>.<span class="ident">range</span>() <span class="op">-</span> <span class="ident">global_offset</span>;
+                            <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">token_map</span>.<span class="ident">alloc</span>(<span class="ident">relative_range</span>);
+                            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>();
+                            <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Ident</span> { <span class="ident">text</span>, <span class="ident">id</span> }).<span class="ident">into</span>()
+                        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span>().<span class="ident">is_literal</span>() {
+                            <span class="ident">tt</span>::<span class="ident">Leaf</span>::<span class="ident">from</span>(<span class="ident">tt</span>::<span class="ident">Literal</span> { <span class="ident">text</span>: <span class="ident">token</span>.<span class="ident">text</span>().<span class="ident">clone</span>() }).<span class="ident">into</span>()
+                        } <span class="kw">else</span> {
+                            <span class="kw">return</span> <span class="prelude-val">None</span>;
+                        };
                     <span class="ident">token_trees</span>.<span class="ident">push</span>(<span class="ident">child</span>);
                 }
             }
@@ -730,10 +726,8 @@
 }
 
 <span class="kw">fn</span> <span class="ident">is_delimiter</span>(<span class="ident">kind</span>: <span class="ident">SyntaxKind</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-    <span class="kw">use</span> <span class="ident">SyntaxKind</span>::<span class="kw-2">*</span>;
-
     <span class="kw">match</span> <span class="ident">kind</span> {
-        <span class="ident">L_PAREN</span> <span class="op">|</span> <span class="ident">L_BRACK</span> <span class="op">|</span> <span class="ident">L_CURLY</span> <span class="op">|</span> <span class="ident">R_PAREN</span> <span class="op">|</span> <span class="ident">R_BRACK</span> <span class="op">|</span> <span class="ident">R_CURLY</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;]&#39;</span>] <span class="op">|</span> <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>] <span class="op">=&gt;</span> <span class="bool-val">true</span>,
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
     }
 }

@@ -137,16 +137,12 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">hir</span>::<span class="ident">db</span>::<span class="ident">HirDatabase</span>;
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
     <span class="ident">ast</span>::{<span class="self">self</span>, <span class="ident">AstNode</span>},
     <span class="ident">TextUnit</span>,
-    <span class="ident">SyntaxKind</span>::{
-        <span class="ident">L_PAREN</span>, <span class="ident">R_PAREN</span>, <span class="ident">L_CURLY</span>, <span class="ident">R_CURLY</span>, <span class="ident">L_BRACK</span>, <span class="ident">R_BRACK</span>, <span class="ident">EXCL</span>
-    },
+    <span class="ident">T</span>
 };
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">AssistCtx</span>, <span class="ident">Assist</span>, <span class="ident">AssistId</span>};
 
@@ -206,7 +202,7 @@
     <span class="comment">// Make sure it is actually a dbg-macro call, dbg followed by !</span>
     <span class="kw">let</span> <span class="ident">excl</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">syntax</span>().<span class="ident">next_sibling_or_token</span>()<span class="question-mark">?</span>;
 
-    <span class="kw">if</span> <span class="ident">name_ref</span>.<span class="ident">text</span>() <span class="op">!=</span> <span class="ident">macro_name</span> <span class="op">||</span> <span class="ident">excl</span>.<span class="ident">kind</span>() <span class="op">!=</span> <span class="ident">EXCL</span> {
+    <span class="kw">if</span> <span class="ident">name_ref</span>.<span class="ident">text</span>() <span class="op">!=</span> <span class="ident">macro_name</span> <span class="op">||</span> <span class="ident">excl</span>.<span class="ident">kind</span>() <span class="op">!=</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>] {
         <span class="kw">return</span> <span class="prelude-val">None</span>;
     }
 
@@ -215,7 +211,7 @@
     <span class="kw">let</span> <span class="ident">last_child</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">last_child_or_token</span>()<span class="question-mark">?</span>;
 
     <span class="kw">match</span> (<span class="ident">first_child</span>.<span class="ident">kind</span>(), <span class="ident">last_child</span>.<span class="ident">kind</span>()) {
-        (<span class="ident">L_PAREN</span>, <span class="ident">R_PAREN</span>) <span class="op">|</span> (<span class="ident">L_BRACK</span>, <span class="ident">R_BRACK</span>) <span class="op">|</span> (<span class="ident">L_CURLY</span>, <span class="ident">R_CURLY</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
+        (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;(&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;)&#39;</span>]) <span class="op">|</span> (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;[&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;]&#39;</span>]) <span class="op">|</span> (<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>], <span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="bool-val">false</span>),
     }
 }

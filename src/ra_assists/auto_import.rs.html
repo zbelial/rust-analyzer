@@ -918,13 +918,15 @@
 <span id="918">918</span>
 <span id="919">919</span>
 <span id="920">920</span>
+<span id="921">921</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_text_edit</span>::<span class="ident">TextEditBuilder</span>;
 <span class="kw">use</span> <span class="ident">hir</span>::{ <span class="self">self</span>, <span class="ident">db</span>::<span class="ident">HirDatabase</span>};
 
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
+    <span class="ident">T</span>,
     <span class="ident">ast</span>::{ <span class="self">self</span>, <span class="ident">NameOwner</span> }, <span class="ident">AstNode</span>, <span class="ident">SyntaxNode</span>, <span class="ident">Direction</span>, <span class="ident">TextRange</span>, <span class="ident">SmolStr</span>,
-    <span class="ident">SyntaxKind</span>::{ <span class="ident">PATH</span>, <span class="ident">PATH_SEGMENT</span>, <span class="ident">COLONCOLON</span>, <span class="ident">COMMA</span> }
+    <span class="ident">SyntaxKind</span>::{ <span class="ident">PATH</span>, <span class="ident">PATH_SEGMENT</span> }
 };
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">AssistId</span>,
@@ -944,7 +946,7 @@
             <span class="ident">children</span>.<span class="ident">next</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> (<span class="ident">n</span>, <span class="ident">n</span>.<span class="ident">kind</span>())),
         );
         <span class="kw">match</span> (<span class="ident">first</span>, <span class="ident">second</span>, <span class="ident">third</span>) {
-            (<span class="prelude-val">Some</span>((<span class="ident">subpath</span>, <span class="ident">PATH</span>)), <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">COLONCOLON</span>)), <span class="prelude-val">Some</span>((<span class="ident">segment</span>, <span class="ident">PATH_SEGMENT</span>))) <span class="op">=&gt;</span> {
+            (<span class="prelude-val">Some</span>((<span class="ident">subpath</span>, <span class="ident">PATH</span>)), <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="macro">T</span><span class="macro">!</span>[::])), <span class="prelude-val">Some</span>((<span class="ident">segment</span>, <span class="ident">PATH_SEGMENT</span>))) <span class="op">=&gt;</span> {
                 <span class="ident">path</span> <span class="op">=</span> <span class="ident">ast</span>::<span class="ident">Path</span>::<span class="ident">cast</span>(<span class="ident">subpath</span>.<span class="ident">as_node</span>()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
                 <span class="ident">segments</span>.<span class="ident">push</span>(<span class="ident">ast</span>::<span class="ident">PathSegment</span>::<span class="ident">cast</span>(<span class="ident">segment</span>.<span class="ident">as_node</span>()<span class="question-mark">?</span>)<span class="question-mark">?</span>);
             }
@@ -1342,7 +1344,7 @@
     <span class="kw">let</span> <span class="ident">last</span> <span class="op">=</span> <span class="ident">tree_list</span>.<span class="ident">use_trees</span>().<span class="ident">last</span>();
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">last</span>) <span class="op">=</span> <span class="ident">last</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
-        <span class="kw">let</span> <span class="ident">comma</span> <span class="op">=</span> <span class="ident">last</span>.<span class="ident">syntax</span>().<span class="ident">siblings</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>).<span class="ident">find</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">COMMA</span>);
+        <span class="kw">let</span> <span class="ident">comma</span> <span class="op">=</span> <span class="ident">last</span>.<span class="ident">syntax</span>().<span class="ident">siblings</span>(<span class="ident">Direction</span>::<span class="ident">Next</span>).<span class="ident">find</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[,]);
         <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">comma</span>) <span class="op">=</span> <span class="ident">comma</span> {
             <span class="ident">comma</span>.<span class="ident">range</span>().<span class="ident">end</span>()
         } <span class="kw">else</span> {

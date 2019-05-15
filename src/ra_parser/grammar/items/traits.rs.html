@@ -143,15 +143,15 @@
 <span class="comment">// trait T&lt;U&gt;: Hash + Clone where U: Copy {}</span>
 <span class="comment">// trait X&lt;U: Debug + Display&gt;: Hash + Clone where U: Copy {}</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">trait_def</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">TRAIT_KW</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">trait</span>]));
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="ident">name_r</span>(<span class="ident">p</span>, <span class="ident">ITEM_RECOVERY_SET</span>);
     <span class="ident">type_params</span>::<span class="ident">opt_type_param_list</span>(<span class="ident">p</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">COLON</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[:]) {
         <span class="ident">type_params</span>::<span class="ident">bounds</span>(<span class="ident">p</span>);
     }
     <span class="ident">type_params</span>::<span class="ident">opt_where_clause</span>(<span class="ident">p</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
         <span class="ident">trait_item_list</span>(<span class="ident">p</span>);
     } <span class="kw">else</span> {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected `{`&quot;</span>);
@@ -166,24 +166,24 @@
 <span class="comment">//     fn bar(&amp;self);</span>
 <span class="comment">// }</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">trait_item_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
             <span class="ident">error_block</span>(<span class="ident">p</span>, <span class="string">&quot;expected an item&quot;</span>);
             <span class="kw">continue</span>;
         }
         <span class="ident">item_or_macro</span>(<span class="ident">p</span>, <span class="bool-val">true</span>, <span class="ident">ItemFlavor</span>::<span class="ident">Trait</span>);
     }
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_CURLY</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">ITEM_LIST</span>);
 }
 
 <span class="comment">// test impl_block</span>
 <span class="comment">// impl Foo {}</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">impl_block</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">IMPL_KW</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ]));
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="kw">if</span> <span class="ident">choose_type_params_over_qpath</span>(<span class="ident">p</span>) {
         <span class="ident">type_params</span>::<span class="ident">opt_type_param_list</span>(<span class="ident">p</span>);
@@ -194,13 +194,13 @@
 
     <span class="comment">// test impl_block_neg</span>
     <span class="comment">// impl !Send for X {}</span>
-    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">EXCL</span>);
+    <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">!</span>]);
     <span class="ident">impl_type</span>(<span class="ident">p</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="ident">FOR_KW</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">eat</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">for</span>]) {
         <span class="ident">impl_type</span>(<span class="ident">p</span>);
     }
     <span class="ident">type_params</span>::<span class="ident">opt_where_clause</span>(<span class="ident">p</span>);
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
         <span class="ident">impl_item_list</span>(<span class="ident">p</span>);
     } <span class="kw">else</span> {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected `{`&quot;</span>);
@@ -215,7 +215,7 @@
 <span class="comment">//     fn bar(&amp;self) {}</span>
 <span class="comment">// }</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">impl_item_list</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]));
     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">start</span>();
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="comment">// test impl_inner_attributes</span>
@@ -226,14 +226,14 @@
     <span class="comment">// }</span>
     <span class="ident">attributes</span>::<span class="ident">inner_attributes</span>(<span class="ident">p</span>);
 
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">R_CURLY</span>) {
-        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_CURLY</span>) {
+    <span class="kw">while</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">EOF</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]) {
+        <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;{&#39;</span>]) {
             <span class="ident">error_block</span>(<span class="ident">p</span>, <span class="string">&quot;expected an item&quot;</span>);
             <span class="kw">continue</span>;
         }
         <span class="ident">item_or_macro</span>(<span class="ident">p</span>, <span class="bool-val">true</span>, <span class="ident">ItemFlavor</span>::<span class="ident">Mod</span>);
     }
-    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="ident">R_CURLY</span>);
+    <span class="ident">p</span>.<span class="ident">expect</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="string">&#39;}&#39;</span>]);
     <span class="ident">m</span>.<span class="ident">complete</span>(<span class="ident">p</span>, <span class="ident">ITEM_LIST</span>);
 }
 
@@ -253,14 +253,14 @@
     <span class="comment">// we disambiguate it in favor of generics (`impl&lt;T&gt; ::absolute::Path&lt;T&gt; { ... }`)</span>
     <span class="comment">// because this is what almost always expected in practice, qualified paths in impls</span>
     <span class="comment">// (`impl &lt;Type&gt;::AssocTy { ... }`) aren&#39;t even allowed by type checker at the moment.</span>
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">L_ANGLE</span>) {
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="op">&lt;</span>]) {
         <span class="kw">return</span> <span class="bool-val">false</span>;
     }
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">POUND</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">R_ANGLE</span> {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[#] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>] {
         <span class="kw">return</span> <span class="bool-val">true</span>;
     }
     (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">LIFETIME</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">1</span>) <span class="op">==</span> <span class="ident">IDENT</span>)
-        <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">R_ANGLE</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">COMMA</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">COLON</span> <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="ident">EQ</span>)
+        <span class="op">&amp;&amp;</span> (<span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">&gt;</span>] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[,] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[:] <span class="op">||</span> <span class="ident">p</span>.<span class="ident">nth</span>(<span class="number">2</span>) <span class="op">==</span> <span class="macro">T</span><span class="macro">!</span>[<span class="op">=</span>])
 }
 
 <span class="comment">// test_err impl_type</span>
@@ -269,7 +269,7 @@
 <span class="comment">// impl impl NotType {}</span>
 <span class="comment">// impl Trait2 for impl NotType {}</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">impl_type</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="ident">IMPL_KW</span>) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ]) {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected trait or type&quot;</span>);
         <span class="kw">return</span>;
     }
