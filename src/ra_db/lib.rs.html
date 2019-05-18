@@ -99,6 +99,7 @@
 <span id="99"> 99</span>
 <span id="100">100</span>
 <span id="101">101</span>
+<span id="102">102</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! ra_db defines basic database traits. The concrete DB is defined by ra_ide_api.</span>
 <span class="kw">mod</span> <span class="ident">cancellation</span>;
@@ -117,7 +118,7 @@
     },
 };
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CheckCanceled</span>: <span class="ident">panic</span>::<span class="ident">RefUnwindSafe</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CheckCanceled</span> {
     <span class="doccomment">/// Aborts current query if there are pending changes.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// rust-analyzer needs to be able to answer semantic questions about the</span>
@@ -138,14 +139,15 @@
         <span class="self">Self</span>: <span class="ident">Sized</span>,
         <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="ident">T</span> <span class="op">+</span> <span class="ident">panic</span>::<span class="ident">UnwindSafe</span>,
     {
-        <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">||</span> <span class="ident">f</span>(<span class="self">self</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">downcast</span>::<span class="op">&lt;</span><span class="ident">Canceled</span><span class="op">&gt;</span>() {
+        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">AssertUnwindSafe</span>(<span class="self">self</span>);
+        <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">||</span> <span class="ident">f</span>(<span class="kw-2">*</span><span class="ident">this</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">downcast</span>::<span class="op">&lt;</span><span class="ident">Canceled</span><span class="op">&gt;</span>() {
             <span class="prelude-val">Ok</span>(<span class="ident">canceled</span>) <span class="op">=&gt;</span> <span class="kw-2">*</span><span class="ident">canceled</span>,
             <span class="prelude-val">Err</span>(<span class="ident">payload</span>) <span class="op">=&gt;</span> <span class="ident">panic</span>::<span class="ident">resume_unwind</span>(<span class="ident">payload</span>),
         })
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">salsa</span>::<span class="ident">Database</span> <span class="op">+</span> <span class="ident">panic</span>::<span class="ident">RefUnwindSafe</span><span class="op">&gt;</span> <span class="ident">CheckCanceled</span> <span class="kw">for</span> <span class="ident">T</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">salsa</span>::<span class="ident">Database</span><span class="op">&gt;</span> <span class="ident">CheckCanceled</span> <span class="kw">for</span> <span class="ident">T</span> {
     <span class="kw">fn</span> <span class="ident">check_canceled</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">salsa_runtime</span>().<span class="ident">is_current_revision_canceled</span>() {
             <span class="ident">Canceled</span>::<span class="ident">throw</span>()
