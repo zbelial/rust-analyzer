@@ -227,6 +227,7 @@
 <span id="227">227</span>
 <span id="228">228</span>
 <span id="229">229</span>
+<span id="230">230</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">cell</span>::<span class="ident">RefCell</span>,
@@ -428,6 +429,7 @@
         <span class="kw">if</span> <span class="ident">l</span> <span class="op">!=</span> <span class="ident">lvl</span> {
             <span class="kw">continue</span>;
         }
+
         <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">out</span>, <span class="string">&quot;{} {:6}ms - {}&quot;</span>, <span class="ident">indent</span>, <span class="ident">dur</span>.<span class="ident">as_millis</span>(), <span class="ident">msg</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;printing profiling info to stdout&quot;</span>);
 

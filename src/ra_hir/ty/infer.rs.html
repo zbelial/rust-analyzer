@@ -1429,6 +1429,8 @@
 <span id="1429">1429</span>
 <span id="1430">1430</span>
 <span id="1431">1431</span>
+<span id="1432">1432</span>
+<span id="1433">1433</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type inference, i.e. the process of walking through the code and determining</span>
 <span class="doccomment">//! the type of each expression and pattern.</span>
@@ -1455,6 +1457,7 @@
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span>;
 
 <span class="kw">use</span> <span class="ident">ra_arena</span>::<span class="ident">map</span>::<span class="ident">ArenaMap</span>;
+<span class="kw">use</span> <span class="ident">ra_prof</span>::<span class="ident">profile</span>;
 <span class="kw">use</span> <span class="ident">test_utils</span>::<span class="ident">tested_by</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1483,7 +1486,8 @@
 <span class="kw">mod</span> <span class="ident">unify</span>;
 
 <span class="doccomment">/// The entry point of type inference.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">infer</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">def</span>: <span class="ident">DefWithBody</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">InferenceResult</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">infer_query</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>, <span class="ident">def</span>: <span class="ident">DefWithBody</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">InferenceResult</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">_p</span> <span class="op">=</span> <span class="ident">profile</span>(<span class="string">&quot;infer_query&quot;</span>);
     <span class="ident">db</span>.<span class="ident">check_canceled</span>();
     <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">def</span>.<span class="ident">body</span>(<span class="ident">db</span>);
     <span class="kw">let</span> <span class="ident">resolver</span> <span class="op">=</span> <span class="ident">def</span>.<span class="ident">resolver</span>(<span class="ident">db</span>);
