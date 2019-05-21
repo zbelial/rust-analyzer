@@ -339,7 +339,7 @@
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">method_resolution</span>::<span class="ident">CrateImplBlocks</span>::<span class="ident">impls_in_crate_query</span>)]</span>
     <span class="kw">fn</span> <span class="ident">impls_in_crate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CrateImplBlocks</span><span class="op">&gt;</span>;
 
-    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">impls_for_trait</span>)]</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">impls_for_trait_query</span>)]</span>
     <span class="kw">fn</span> <span class="ident">impls_for_trait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>, <span class="ident">trait_</span>: <span class="ident">Trait</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span>[<span class="ident">ImplBlock</span>]<span class="op">&gt;</span>;
 
     <span class="doccomment">/// This provides the Chalk trait solver instance. Because Chalk always</span>
@@ -347,11 +347,11 @@
     <span class="doccomment">/// because Chalk does its own internal caching, the solver is wrapped in a</span>
     <span class="doccomment">/// Mutex and the query is marked volatile, to make sure the cached state is</span>
     <span class="doccomment">/// thrown away when input facts change.</span>
-    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">solver</span>)]</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">solver_query</span>)]</span>
     <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">volatile</span>]</span>
     <span class="kw">fn</span> <span class="ident">solver</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">krate</span>: <span class="ident">Crate</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">Solver</span><span class="op">&gt;&gt;</span>;
 
-    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">implements</span>)]</span>
+    <span class="attribute">#[<span class="ident">salsa</span>::<span class="ident">invoke</span>(<span class="kw">crate</span>::<span class="ident">ty</span>::<span class="ident">traits</span>::<span class="ident">implements_query</span>)]</span>
     <span class="kw">fn</span> <span class="ident">implements</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">krate</span>: <span class="ident">Crate</span>,
