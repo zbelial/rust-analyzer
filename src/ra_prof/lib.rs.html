@@ -228,6 +228,25 @@
 <span id="228">228</span>
 <span id="229">229</span>
 <span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">cell</span>::<span class="ident">RefCell</span>,
@@ -240,6 +259,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">once_cell</span>::<span class="ident">sync</span>::<span class="ident">Lazy</span>;
+<span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 
 <span class="doccomment">/// Set profiling filter. It specifies descriptions allowed to profile.</span>
 <span class="doccomment">/// This is helpful when call stack has too many nested profiling scopes.</span>
@@ -410,8 +430,9 @@
                     <span class="ident">stack</span>.<span class="ident">messages</span>.<span class="ident">push</span>(<span class="ident">Message</span> { <span class="ident">level</span>, <span class="ident">duration</span>, <span class="ident">message</span> });
                     <span class="kw">if</span> <span class="ident">level</span> <span class="op">==</span> <span class="number">0</span> {
                         <span class="kw">let</span> <span class="ident">stdout</span> <span class="op">=</span> <span class="ident">stderr</span>();
-                        <span class="kw">if</span> <span class="ident">duration</span> <span class="op">&gt;=</span> <span class="ident">stack</span>.<span class="ident">filter_data</span>.<span class="ident">longer_than</span> {
-                            <span class="ident">print</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">stack</span>.<span class="ident">messages</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">stdout</span>.<span class="ident">lock</span>());
+                        <span class="kw">let</span> <span class="ident">longer_than</span> <span class="op">=</span> <span class="ident">stack</span>.<span class="ident">filter_data</span>.<span class="ident">longer_than</span>;
+                        <span class="kw">if</span> <span class="ident">duration</span> <span class="op">&gt;=</span> <span class="ident">longer_than</span> {
+                            <span class="ident">print</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">stack</span>.<span class="ident">messages</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">stdout</span>.<span class="ident">lock</span>(), <span class="ident">longer_than</span>);
                         }
                         <span class="ident">stack</span>.<span class="ident">messages</span>.<span class="ident">clear</span>();
                     }
@@ -422,19 +443,36 @@
     }
 }
 
-<span class="kw">fn</span> <span class="ident">print</span>(<span class="ident">lvl</span>: <span class="ident">usize</span>, <span class="ident">msgs</span>: <span class="kw-2">&amp;</span>[<span class="ident">Message</span>], <span class="ident">out</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) {
+<span class="kw">fn</span> <span class="ident">print</span>(<span class="ident">lvl</span>: <span class="ident">usize</span>, <span class="ident">msgs</span>: <span class="kw-2">&amp;</span>[<span class="ident">Message</span>], <span class="ident">out</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>, <span class="ident">longer_than</span>: <span class="ident">Duration</span>) {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="ident">indent</span> <span class="op">=</span> <span class="ident">repeat</span>(<span class="string">&quot;    &quot;</span>).<span class="ident">take</span>(<span class="ident">lvl</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>();
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">Message</span> { <span class="ident">level</span>: <span class="ident">l</span>, <span class="ident">duration</span>: <span class="ident">dur</span>, <span class="ident">message</span>: <span class="kw-2">ref</span> <span class="ident">msg</span> }) <span class="kw">in</span> <span class="ident">msgs</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-        <span class="kw">if</span> <span class="ident">l</span> <span class="op">!=</span> <span class="ident">lvl</span> {
+    <span class="comment">// We output hierarchy for long calls, but sum up all short calls</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">short</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+    <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">Message</span> { <span class="ident">level</span>, <span class="ident">duration</span>, <span class="ident">message</span>: <span class="kw-2">ref</span> <span class="ident">msg</span> }) <span class="kw">in</span> <span class="ident">msgs</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+        <span class="kw">if</span> <span class="ident">level</span> <span class="op">!=</span> <span class="ident">lvl</span> {
             <span class="kw">continue</span>;
         }
+        <span class="kw">if</span> <span class="ident">duration</span> <span class="op">&gt;=</span> <span class="ident">longer_than</span> {
+            <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">out</span>, <span class="string">&quot;{} {:6}ms - {}&quot;</span>, <span class="ident">indent</span>, <span class="ident">duration</span>.<span class="ident">as_millis</span>(), <span class="ident">msg</span>)
+                .<span class="ident">expect</span>(<span class="string">&quot;printing profiling info to stdout&quot;</span>);
 
-        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">out</span>, <span class="string">&quot;{} {:6}ms - {}&quot;</span>, <span class="ident">indent</span>, <span class="ident">dur</span>.<span class="ident">as_millis</span>(), <span class="ident">msg</span>)
-            .<span class="ident">expect</span>(<span class="string">&quot;printing profiling info to stdout&quot;</span>);
+            <span class="ident">print</span>(<span class="ident">lvl</span> <span class="op">+</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">msgs</span>[<span class="ident">last</span>..<span class="ident">i</span>], <span class="ident">out</span>, <span class="ident">longer_than</span>);
+        } <span class="kw">else</span> {
+            <span class="ident">short</span>.<span class="ident">push</span>((<span class="ident">msg</span>, <span class="ident">duration</span>))
+        }
 
-        <span class="ident">print</span>(<span class="ident">lvl</span> <span class="op">+</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">msgs</span>[<span class="ident">last</span>..<span class="ident">i</span>], <span class="ident">out</span>);
         <span class="ident">last</span> <span class="op">=</span> <span class="ident">i</span>;
+    }
+    <span class="ident">short</span>.<span class="ident">sort_by_key</span>(<span class="op">|</span>(<span class="ident">msg</span>, <span class="ident">_time</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">msg</span>);
+    <span class="kw">for</span> (<span class="ident">msg</span>, <span class="ident">entires</span>) <span class="kw">in</span> <span class="ident">short</span>.<span class="ident">iter</span>().<span class="ident">group_by</span>(<span class="op">|</span>(<span class="ident">msg</span>, <span class="ident">_time</span>)<span class="op">|</span> <span class="ident">msg</span>).<span class="ident">into_iter</span>() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">count</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">default</span>();
+        <span class="ident">entires</span>.<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">_msg</span>, <span class="ident">time</span>)<span class="op">|</span> {
+            <span class="ident">count</span> <span class="op">+=</span> <span class="number">1</span>;
+            <span class="ident">total_duration</span> <span class="op">+=</span> <span class="kw-2">*</span><span class="ident">time</span>;
+        });
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">out</span>, <span class="string">&quot;{} {:6}ms - {} ({} calls)&quot;</span>, <span class="ident">indent</span>, <span class="ident">total_duration</span>.<span class="ident">as_millis</span>(), <span class="ident">msg</span>, <span class="ident">count</span>)
+            .<span class="ident">expect</span>(<span class="string">&quot;printing profiling info to stdout&quot;</span>);
     }
 }
 
