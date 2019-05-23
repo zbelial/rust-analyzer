@@ -134,31 +134,21 @@
 <span id="134">134</span>
 <span id="135">135</span>
 <span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A language server scaffold, exposing a synchronous crossbeam-channel based API.</span>
 <span class="doccomment">//! This crate handles protocol handshaking and parsing messages, while you</span>
 <span class="doccomment">//! control the message dispatch loop yourself.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! Run with `RUST_LOG=sync_lsp_server=debug` to see all the messages.</span>
+<span class="doccomment">//! Run with `RUST_LOG=gen_lsp_server=debug` to see all the messages.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ```no_run</span>
-<span class="doccomment">//! extern crate gen_lsp_server;</span>
-<span class="doccomment">//! extern crate lsp_types;</span>
-<span class="doccomment">//! extern crate failure;</span>
-<span class="doccomment">//! extern crate crossbeam_channel;</span>
-<span class="doccomment">//!</span>
 <span class="doccomment">//! use crossbeam_channel::{Sender, Receiver};</span>
 <span class="doccomment">//! use lsp_types::{ServerCapabilities, InitializeParams, request::{GotoDefinition, GotoDefinitionResponse}};</span>
 <span class="doccomment">//! use gen_lsp_server::{run_server, stdio_transport, handle_shutdown, RawMessage, RawResponse};</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! fn main() -&gt; Result&lt;(), failure::Error&gt; {</span>
 <span class="doccomment">//!     let (receiver, sender, io_threads) = stdio_transport();</span>
-<span class="doccomment">//!     gen_lsp_server::run_server(</span>
+<span class="doccomment">//!     run_server(</span>
 <span class="doccomment">//!         ServerCapabilities::default(),</span>
 <span class="doccomment">//!         receiver,</span>
 <span class="doccomment">//!         sender,</span>
@@ -180,13 +170,13 @@
 <span class="doccomment">//!                     None =&gt; return Ok(()),</span>
 <span class="doccomment">//!                     Some(req) =&gt; req,</span>
 <span class="doccomment">//!                 };</span>
-<span class="doccomment">//!                 let req = match req.cast::&lt;GotoDefinition&gt;() {</span>
+<span class="doccomment">//!                 match req.cast::&lt;GotoDefinition&gt;() {</span>
 <span class="doccomment">//!                     Ok((id, _params)) =&gt; {</span>
 <span class="doccomment">//!                         let resp = RawResponse::ok::&lt;GotoDefinition&gt;(</span>
 <span class="doccomment">//!                             id,</span>
 <span class="doccomment">//!                             &amp;Some(GotoDefinitionResponse::Array(Vec::new())),</span>
 <span class="doccomment">//!                         );</span>
-<span class="doccomment">//!                         sender.send(RawMessage::Response(resp));</span>
+<span class="doccomment">//!                         sender.send(RawMessage::Response(resp))?;</span>
 <span class="doccomment">//!                         continue;</span>
 <span class="doccomment">//!                     },</span>
 <span class="doccomment">//!                     Err(req) =&gt; req,</span>
