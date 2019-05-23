@@ -130,6 +130,12 @@
 <span id="130">130</span>
 <span id="131">131</span>
 <span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
     <span class="ident">algo</span>::<span class="ident">visit</span>::{<span class="ident">visitor_ctx</span>, <span class="ident">VisitorCtx</span>},
@@ -204,15 +210,17 @@
                 fn baz(file&lt;|&gt;) {}
                 &quot;</span>,
         ),
-            @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;file_id: FileId&quot;,
-        source_range: [110; 114),
-        delete: [110; 114),
-        insert: &quot;file_id: FileId&quot;,
-        lookup: &quot;file_id&quot;
-    }
-]&quot;###</span>
+            @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;file_id: FileId&quot;,
+       ⋮        source_range: [110; 114),
+       ⋮        delete: [110; 114),
+       ⋮        insert: &quot;file_id: FileId&quot;,
+       ⋮        lookup: &quot;file_id&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -226,15 +234,17 @@
                 fn baz(file&lt;|&gt;, x: i32) {}
                 &quot;</span>,
         ),
-            @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;file_id: FileId&quot;,
-        source_range: [110; 114),
-        delete: [110; 114),
-        insert: &quot;file_id: FileId&quot;,
-        lookup: &quot;file_id&quot;
-    }
-]&quot;###</span>
+            @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;file_id: FileId&quot;,
+       ⋮        source_range: [110; 114),
+       ⋮        delete: [110; 114),
+       ⋮        insert: &quot;file_id: FileId&quot;,
+       ⋮        lookup: &quot;file_id&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -251,15 +261,17 @@
                 }
                 &quot;</span>,
         ),
-            @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;file_id: FileId&quot;,
-        source_range: [289; 293),
-        delete: [289; 293),
-        insert: &quot;file_id: FileId&quot;,
-        lookup: &quot;file_id&quot;
-    }
-]&quot;###</span>
+            @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;file_id: FileId&quot;,
+       ⋮        source_range: [289; 293),
+       ⋮        delete: [289; 293),
+       ⋮        insert: &quot;file_id: FileId&quot;,
+       ⋮        lookup: &quot;file_id&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 }

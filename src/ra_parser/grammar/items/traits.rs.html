@@ -183,7 +183,7 @@
 <span class="comment">// test impl_block</span>
 <span class="comment">// impl Foo {}</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">impl_block</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ]));
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span>]));
     <span class="ident">p</span>.<span class="ident">bump</span>();
     <span class="kw">if</span> <span class="ident">choose_type_params_over_qpath</span>(<span class="ident">p</span>) {
         <span class="ident">type_params</span>::<span class="ident">opt_type_param_list</span>(<span class="ident">p</span>);
@@ -269,7 +269,7 @@
 <span class="comment">// impl impl NotType {}</span>
 <span class="comment">// impl Trait2 for impl NotType {}</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">impl_type</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) {
-    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ]) {
+    <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">at</span>(<span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span>]) {
         <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected trait or type&quot;</span>);
         <span class="kw">return</span>;
     }

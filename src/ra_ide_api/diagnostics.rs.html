@@ -433,6 +433,8 @@
 <span id="433">433</span>
 <span id="434">434</span>
 <span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 
@@ -746,28 +748,30 @@
     <span class="kw">fn</span> <span class="ident">test_unresolved_module_diagnostic</span>() {
         <span class="kw">let</span> (<span class="ident">analysis</span>, <span class="ident">file_id</span>) <span class="op">=</span> <span class="ident">single_file</span>(<span class="string">&quot;mod foo;&quot;</span>);
         <span class="kw">let</span> <span class="ident">diagnostics</span> <span class="op">=</span> <span class="ident">analysis</span>.<span class="ident">diagnostics</span>(<span class="ident">file_id</span>).<span class="ident">unwrap</span>();
-        <span class="macro">assert_debug_snapshot_matches</span><span class="macro">!</span>(<span class="ident">diagnostics</span>, @<span class="string">r####&quot;[
-    Diagnostic {
-        message: &quot;unresolved module&quot;,
-        range: [0; 8),
-        fix: Some(
-            SourceChange {
-                label: &quot;create module&quot;,
-                source_file_edits: [],
-                file_system_edits: [
-                    CreateFile {
-                        source_root: SourceRootId(
-                            0
-                        ),
-                        path: &quot;foo.rs&quot;
-                    }
-                ],
-                cursor_position: None
-            }
-        ),
-        severity: Error
-    }
-]&quot;####</span>);
+        <span class="macro">assert_debug_snapshot_matches</span><span class="macro">!</span>(<span class="ident">diagnostics</span>, @<span class="string">r###&quot;
+       ⋮[
+       ⋮    Diagnostic {
+       ⋮        message: &quot;unresolved module&quot;,
+       ⋮        range: [0; 8),
+       ⋮        fix: Some(
+       ⋮            SourceChange {
+       ⋮                label: &quot;create module&quot;,
+       ⋮                source_file_edits: [],
+       ⋮                file_system_edits: [
+       ⋮                    CreateFile {
+       ⋮                        source_root: SourceRootId(
+       ⋮                            0,
+       ⋮                        ),
+       ⋮                        path: &quot;foo.rs&quot;,
+       ⋮                    },
+       ⋮                ],
+       ⋮                cursor_position: None,
+       ⋮            },
+       ⋮        ),
+       ⋮        severity: Error,
+       ⋮    },
+       ⋮]
+        &quot;###</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>

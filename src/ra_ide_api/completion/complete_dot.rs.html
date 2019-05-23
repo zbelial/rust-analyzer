@@ -359,6 +359,24 @@
 <span id="359">359</span>
 <span id="360">360</span>
 <span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">hir</span>::{<span class="ident">Ty</span>, <span class="ident">AdtDef</span>, <span class="ident">TypeCtor</span>};
 
@@ -428,16 +446,18 @@
                 }
                 &quot;</span>,
         ),
-            @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_field&quot;,
-        source_range: [94; 94),
-        delete: [94; 94),
-        insert: &quot;the_field&quot;,
-        kind: Field,
-        detail: &quot;u32&quot;
-    }
-]&quot;###</span>
+            @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_field&quot;,
+       ⋮        source_range: [94; 94),
+       ⋮        delete: [94; 94),
+       ⋮        insert: &quot;the_field&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;u32&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -457,27 +477,29 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;foo&quot;,
-        source_range: [187; 187),
-        delete: [187; 187),
-        insert: &quot;foo()$0&quot;,
-        kind: Method,
-        detail: &quot;fn foo(self)&quot;
-    },
-    CompletionItem {
-        label: &quot;the_field&quot;,
-        source_range: [187; 187),
-        delete: [187; 187),
-        insert: &quot;the_field&quot;,
-        kind: Field,
-        detail: &quot;(u32,)&quot;,
-        documentation: Documentation(
-            &quot;This is the_field&quot;
-        )
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;foo&quot;,
+       ⋮        source_range: [187; 187),
+       ⋮        delete: [187; 187),
+       ⋮        insert: &quot;foo()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;fn foo(self)&quot;,
+       ⋮    },
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_field&quot;,
+       ⋮        source_range: [187; 187),
+       ⋮        delete: [187; 187),
+       ⋮        insert: &quot;the_field&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;(u32,)&quot;,
+       ⋮        documentation: Documentation(
+       ⋮            &quot;This is the_field&quot;,
+       ⋮        ),
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -494,24 +516,26 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;foo&quot;,
-        source_range: [126; 126),
-        delete: [126; 126),
-        insert: &quot;foo()$0&quot;,
-        kind: Method,
-        detail: &quot;fn foo(&amp;self)&quot;
-    },
-    CompletionItem {
-        label: &quot;the_field&quot;,
-        source_range: [126; 126),
-        delete: [126; 126),
-        insert: &quot;the_field&quot;,
-        kind: Field,
-        detail: &quot;(u32, i32)&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;foo&quot;,
+       ⋮        source_range: [126; 126),
+       ⋮        delete: [126; 126),
+       ⋮        insert: &quot;foo()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;fn foo(&amp;self)&quot;,
+       ⋮    },
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_field&quot;,
+       ⋮        source_range: [126; 126),
+       ⋮        delete: [126; 126),
+       ⋮        insert: &quot;the_field&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;(u32, i32)&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -544,16 +568,18 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_method&quot;,
-        source_range: [144; 144),
-        delete: [144; 144),
-        insert: &quot;the_method()$0&quot;,
-        kind: Method,
-        detail: &quot;fn the_method(&amp;self)&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_method&quot;,
+       ⋮        source_range: [144; 144),
+       ⋮        delete: [144; 144),
+       ⋮        insert: &quot;the_method()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;fn the_method(&amp;self)&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -570,16 +596,18 @@
             }
             &quot;</span>,
             ),
-            @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_method&quot;,
-        source_range: [151; 151),
-        delete: [151; 151),
-        insert: &quot;the_method()$0&quot;,
-        kind: Method,
-        detail: &quot;fn the_method(&amp;self)&quot;
-    }
-]&quot;###</span>
+            @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_method&quot;,
+       ⋮        source_range: [151; 151),
+       ⋮        delete: [151; 151),
+       ⋮        insert: &quot;the_method()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;fn the_method(&amp;self)&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -619,16 +647,18 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_method&quot;,
-        source_range: [249; 249),
-        delete: [249; 249),
-        insert: &quot;the_method()$0&quot;,
-        kind: Method,
-        detail: &quot;fn the_method(&amp;self)&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_method&quot;,
+       ⋮        source_range: [249; 249),
+       ⋮        delete: [249; 249),
+       ⋮        insert: &quot;the_method()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;fn the_method(&amp;self)&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -643,24 +673,26 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;0&quot;,
-        source_range: [75; 75),
-        delete: [75; 75),
-        insert: &quot;0&quot;,
-        kind: Field,
-        detail: &quot;i32&quot;
-    },
-    CompletionItem {
-        label: &quot;1&quot;,
-        source_range: [75; 75),
-        delete: [75; 75),
-        insert: &quot;1&quot;,
-        kind: Field,
-        detail: &quot;f64&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;0&quot;,
+       ⋮        source_range: [75; 75),
+       ⋮        delete: [75; 75),
+       ⋮        insert: &quot;0&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;i32&quot;,
+       ⋮    },
+       ⋮    CompletionItem {
+       ⋮        label: &quot;1&quot;,
+       ⋮        source_range: [75; 75),
+       ⋮        delete: [75; 75),
+       ⋮        insert: &quot;1&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;f64&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -684,16 +716,18 @@
             }
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;blah&quot;,
-        source_range: [299; 300),
-        delete: [299; 300),
-        insert: &quot;blah()$0&quot;,
-        kind: Method,
-        detail: &quot;pub fn blah(&amp;self)&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;blah&quot;,
+       ⋮        source_range: [299; 300),
+       ⋮        delete: [299; 300),
+       ⋮        insert: &quot;blah()$0&quot;,
+       ⋮        kind: Method,
+       ⋮        detail: &quot;pub fn blah(&amp;self)&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 
@@ -708,16 +742,18 @@
             };
             &quot;</span>,
         ),
-        @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_field&quot;,
-        source_range: [106; 106),
-        delete: [106; 106),
-        insert: &quot;the_field&quot;,
-        kind: Field,
-        detail: &quot;u32&quot;
-    }
-]&quot;###</span>
+        @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_field&quot;,
+       ⋮        source_range: [106; 106),
+       ⋮        delete: [106; 106),
+       ⋮        insert: &quot;the_field&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;u32&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>
         );
     }
 }

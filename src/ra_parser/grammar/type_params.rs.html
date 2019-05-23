@@ -343,7 +343,7 @@
 <span class="kw">fn</span> <span class="ident">is_where_predicate</span>(<span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Parser</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
     <span class="kw">match</span> <span class="ident">p</span>.<span class="ident">current</span>() {
         <span class="ident">LIFETIME</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
-        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ] <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span>] <span class="op">=&gt;</span> <span class="bool-val">false</span>,
         <span class="ident">token</span> <span class="op">=&gt;</span> <span class="ident">types</span>::<span class="ident">TYPE_FIRST</span>.<span class="ident">contains</span>(<span class="ident">token</span>),
     }
 }
@@ -363,7 +363,7 @@
                 <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected colon&quot;</span>);
             }
         }
-        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span> ] <span class="op">=&gt;</span> {
+        <span class="macro">T</span><span class="macro">!</span>[<span class="kw">impl</span>] <span class="op">=&gt;</span> {
             <span class="ident">p</span>.<span class="ident">error</span>(<span class="string">&quot;expected lifetime or type&quot;</span>);
         }
         <span class="kw">_</span> <span class="op">=&gt;</span> {

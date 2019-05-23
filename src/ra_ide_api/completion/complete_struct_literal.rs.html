@@ -56,6 +56,8 @@
 <span id="56">56</span>
 <span id="57">57</span>
 <span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">hir</span>::<span class="ident">AdtDef</span>;
 
@@ -103,16 +105,18 @@
             }
             &quot;</span>,
         );
-        <span class="macro">assert_debug_snapshot_matches</span><span class="macro">!</span>(<span class="ident">completions</span>, @<span class="string">r###&quot;[
-    CompletionItem {
-        label: &quot;the_field&quot;,
-        source_range: [83; 86),
-        delete: [83; 86),
-        insert: &quot;the_field&quot;,
-        kind: Field,
-        detail: &quot;u32&quot;
-    }
-]&quot;###</span>);
+        <span class="macro">assert_debug_snapshot_matches</span><span class="macro">!</span>(<span class="ident">completions</span>, @<span class="string">r###&quot;
+       ⋮[
+       ⋮    CompletionItem {
+       ⋮        label: &quot;the_field&quot;,
+       ⋮        source_range: [83; 86),
+       ⋮        delete: [83; 86),
+       ⋮        insert: &quot;the_field&quot;,
+       ⋮        kind: Field,
+       ⋮        detail: &quot;u32&quot;,
+       ⋮    },
+       ⋮]
+        &quot;###</span>);
     }
 }
 </pre></div>
