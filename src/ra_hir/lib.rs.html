@@ -82,7 +82,6 @@
 <span id="82">82</span>
 <span id="83">83</span>
 <span id="84">84</span>
-<span id="85">85</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! HIR (previously known as descriptors) provides a high-level object oriented</span>
 <span class="doccomment">//! access to Rust code.</span>
@@ -128,8 +127,7 @@
 <span class="kw">mod</span> <span class="ident">resolve</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">diagnostics</span>;
 
-<span class="kw">mod</span> <span class="ident">code_model_api</span>;
-<span class="kw">mod</span> <span class="ident">code_model_impl</span>;
+<span class="kw">mod</span> <span class="ident">code_model</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">marks</span>;
@@ -159,7 +157,7 @@
     <span class="ident">source_binder</span>::{<span class="ident">SourceAnalyzer</span>, <span class="ident">PathResolution</span>, <span class="ident">ScopeEntryWithSyntax</span>,<span class="ident">MacroByExampleDef</span>},
 };
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">code_model_api</span>::{
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">code_model</span>::{
     <span class="ident">Crate</span>, <span class="ident">CrateDependency</span>,
     <span class="ident">DefWithBody</span>,
     <span class="ident">Module</span>, <span class="ident">ModuleDef</span>, <span class="ident">ModuleSource</span>,
