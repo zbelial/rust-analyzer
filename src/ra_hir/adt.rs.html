@@ -231,6 +231,9 @@
 <span id="231">231</span>
 <span id="232">232</span>
 <span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module contains the implementation details of the HIR for ADTs, i.e.</span>
 <span class="doccomment">//! structs and enums (and unions).</span>
@@ -244,7 +247,7 @@
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">Crate</span>,
+    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">Crate</span>,
     <span class="ident">HirDatabase</span>, <span class="ident">HirFileId</span>, <span class="ident">StructField</span>, <span class="ident">FieldSource</span>,
     <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>, <span class="ident">DefDatabase</span>,
 };
@@ -252,14 +255,16 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AdtDef</span> {
     <span class="ident">Struct</span>(<span class="ident">Struct</span>),
+    <span class="ident">Union</span>(<span class="ident">Union</span>),
     <span class="ident">Enum</span>(<span class="ident">Enum</span>),
 }
-<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">AdtDef</span>: <span class="ident">Struct</span>, <span class="ident">Enum</span>);
+<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">AdtDef</span>: <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">Enum</span>);
 
 <span class="kw">impl</span> <span class="ident">AdtDef</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">krate</span>(<span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Crate</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident">AdtDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">module</span>(<span class="ident">db</span>),
+            <span class="ident">AdtDef</span>::<span class="ident">Union</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">module</span>(<span class="ident">db</span>),
             <span class="ident">AdtDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">module</span>(<span class="ident">db</span>),
         }
         .<span class="ident">krate</span>(<span class="ident">db</span>)
@@ -272,6 +277,7 @@
     }
 }
 
+<span class="doccomment">/// Note that we use `StructData` for unions as well!</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StructData</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Name</span><span class="op">&gt;</span>,

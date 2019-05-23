@@ -498,6 +498,12 @@
 <span id="498">498</span>
 <span id="499">499</span>
 <span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Methods for lowering the HIR to types. There are two main cases here:</span>
 <span class="doccomment">//!</span>
@@ -510,7 +516,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">StructField</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">Path</span>, <span class="ident">ModuleDef</span>, <span class="ident">TypeAlias</span>, <span class="ident">Const</span>, <span class="ident">Static</span>,
+    <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">StructField</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">Path</span>, <span class="ident">ModuleDef</span>, <span class="ident">TypeAlias</span>, <span class="ident">Const</span>, <span class="ident">Static</span>,
     <span class="ident">HirDatabase</span>,
     <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>,
     <span class="ident">name</span>::<span class="ident">KnownName</span>,
@@ -625,6 +631,7 @@
         <span class="kw">let</span> <span class="ident">def_generic</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">GenericDef</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">resolved</span> {
             <span class="ident">TypableDef</span>::<span class="ident">Function</span>(<span class="ident">func</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">func</span>.<span class="ident">into</span>()),
             <span class="ident">TypableDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">s</span>.<span class="ident">into</span>()),
+            <span class="ident">TypableDef</span>::<span class="ident">Union</span>(<span class="ident">u</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">u</span>.<span class="ident">into</span>()),
             <span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
             <span class="ident">TypableDef</span>::<span class="ident">EnumVariant</span>(<span class="ident">var</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">var</span>.<span class="ident">parent_enum</span>(<span class="ident">db</span>).<span class="ident">into</span>()),
             <span class="ident">TypableDef</span>::<span class="ident">TypeAlias</span>(<span class="ident">t</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>.<span class="ident">into</span>()),
@@ -645,6 +652,7 @@
         <span class="kw">let</span> <span class="ident">segment</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">resolved</span> {
             <span class="ident">TypableDef</span>::<span class="ident">Function</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Struct</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Union</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Const</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Static</span>(<span class="kw">_</span>)
@@ -794,12 +802,14 @@
         (<span class="ident">TypableDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">type_for_struct_constructor</span>(<span class="ident">db</span>, <span class="ident">s</span>),
         (<span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>), <span class="ident">Namespace</span>::<span class="ident">Types</span>) <span class="op">=&gt;</span> <span class="ident">type_for_adt</span>(<span class="ident">db</span>, <span class="ident">e</span>),
         (<span class="ident">TypableDef</span>::<span class="ident">EnumVariant</span>(<span class="ident">v</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">type_for_enum_variant_constructor</span>(<span class="ident">db</span>, <span class="ident">v</span>),
+        (<span class="ident">TypableDef</span>::<span class="ident">Union</span>(<span class="ident">u</span>), <span class="ident">Namespace</span>::<span class="ident">Types</span>) <span class="op">=&gt;</span> <span class="ident">type_for_adt</span>(<span class="ident">db</span>, <span class="ident">u</span>),
         (<span class="ident">TypableDef</span>::<span class="ident">TypeAlias</span>(<span class="ident">t</span>), <span class="ident">Namespace</span>::<span class="ident">Types</span>) <span class="op">=&gt;</span> <span class="ident">type_for_type_alias</span>(<span class="ident">db</span>, <span class="ident">t</span>),
         (<span class="ident">TypableDef</span>::<span class="ident">Const</span>(<span class="ident">c</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">type_for_const</span>(<span class="ident">db</span>, <span class="ident">c</span>),
         (<span class="ident">TypableDef</span>::<span class="ident">Static</span>(<span class="ident">c</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">type_for_static</span>(<span class="ident">db</span>, <span class="ident">c</span>),
 
         <span class="comment">// &#39;error&#39; cases:</span>
         (<span class="ident">TypableDef</span>::<span class="ident">Function</span>(<span class="kw">_</span>), <span class="ident">Namespace</span>::<span class="ident">Types</span>) <span class="op">=&gt;</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span>,
+        (<span class="ident">TypableDef</span>::<span class="ident">Union</span>(<span class="kw">_</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span>,
         (<span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span>,
         (<span class="ident">TypableDef</span>::<span class="ident">EnumVariant</span>(<span class="kw">_</span>), <span class="ident">Namespace</span>::<span class="ident">Types</span>) <span class="op">=&gt;</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span>,
         (<span class="ident">TypableDef</span>::<span class="ident">TypeAlias</span>(<span class="kw">_</span>), <span class="ident">Namespace</span>::<span class="ident">Values</span>) <span class="op">=&gt;</span> <span class="ident">Ty</span>::<span class="ident">Unknown</span>,
@@ -968,19 +978,21 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">TypableDef</span> {
     <span class="ident">Function</span>(<span class="ident">Function</span>),
     <span class="ident">Struct</span>(<span class="ident">Struct</span>),
+    <span class="ident">Union</span>(<span class="ident">Union</span>),
     <span class="ident">Enum</span>(<span class="ident">Enum</span>),
     <span class="ident">EnumVariant</span>(<span class="ident">EnumVariant</span>),
     <span class="ident">TypeAlias</span>(<span class="ident">TypeAlias</span>),
     <span class="ident">Const</span>(<span class="ident">Const</span>),
     <span class="ident">Static</span>(<span class="ident">Static</span>),
 }
-<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">TypableDef</span>: <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">TypeAlias</span>, <span class="ident">Const</span>, <span class="ident">Static</span>);
+<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">TypableDef</span>: <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">Enum</span>, <span class="ident">EnumVariant</span>, <span class="ident">TypeAlias</span>, <span class="ident">Const</span>, <span class="ident">Static</span>);
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ModuleDef</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TypableDef</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">def</span>: <span class="ident">ModuleDef</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TypableDef</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">def</span> {
             <span class="ident">ModuleDef</span>::<span class="ident">Function</span>(<span class="ident">f</span>) <span class="op">=&gt;</span> <span class="ident">f</span>.<span class="ident">into</span>(),
             <span class="ident">ModuleDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">into</span>(),
+            <span class="ident">ModuleDef</span>::<span class="ident">Union</span>(<span class="ident">u</span>) <span class="op">=&gt;</span> <span class="ident">u</span>.<span class="ident">into</span>(),
             <span class="ident">ModuleDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">into</span>(),
             <span class="ident">ModuleDef</span>::<span class="ident">EnumVariant</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="ident">v</span>.<span class="ident">into</span>(),
             <span class="ident">ModuleDef</span>::<span class="ident">TypeAlias</span>(<span class="ident">t</span>) <span class="op">=&gt;</span> <span class="ident">t</span>.<span class="ident">into</span>(),

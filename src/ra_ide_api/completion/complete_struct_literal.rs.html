@@ -55,6 +55,7 @@
 <span id="55">55</span>
 <span id="56">56</span>
 <span id="57">57</span>
+<span id="58">58</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">hir</span>::<span class="ident">AdtDef</span>;
 
@@ -78,6 +79,7 @@
         }
 
         <span class="comment">// FIXME unions</span>
+        <span class="ident">AdtDef</span>::<span class="ident">Union</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (),
         <span class="ident">AdtDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (),
     };
 }

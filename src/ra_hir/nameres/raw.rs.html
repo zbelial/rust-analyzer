@@ -332,11 +332,9 @@
 <span id="332">332</span>
 <span id="333">333</span>
 <span id="334">334</span>
+<span id="335">335</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">sync</span>::<span class="ident">Arc</span>,
-    <span class="ident">ops</span>::<span class="ident">Index</span>,
-};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">ops</span>::<span class="ident">Index</span>};
 
 <span class="kw">use</span> <span class="ident">test_utils</span>::<span class="ident">tested_by</span>;
 <span class="kw">use</span> <span class="ident">ra_arena</span>::{<span class="ident">Arena</span>, <span class="ident">impl_arena_id</span>, <span class="ident">RawId</span>, <span class="ident">map</span>::<span class="ident">ArenaMap</span>};
@@ -345,10 +343,7 @@
     <span class="ident">ast</span>::{<span class="self">self</span>, <span class="ident">NameOwner</span>, <span class="ident">AttrsOwner</span>},
 };
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">DefDatabase</span>, <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Path</span>, <span class="ident">HirFileId</span>, <span class="ident">ModuleSource</span>,
-    <span class="ident">AstIdMap</span>, <span class="ident">FileAstId</span>, <span class="ident">Either</span>,
-};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DefDatabase</span>, <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Path</span>, <span class="ident">HirFileId</span>, <span class="ident">ModuleSource</span>, <span class="ident">AstIdMap</span>, <span class="ident">FileAstId</span>, <span class="ident">Either</span>};
 
 <span class="doccomment">/// `RawItems` is a set of top-level items in a file (except for impls).</span>
 <span class="doccomment">///</span>
@@ -496,6 +491,7 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum</span> <span class="ident">DefKind</span> {
     <span class="ident">Function</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">FnDef</span><span class="op">&gt;</span>),
     <span class="ident">Struct</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">StructDef</span><span class="op">&gt;</span>),
+    <span class="ident">Union</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">StructDef</span><span class="op">&gt;</span>),
     <span class="ident">Enum</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">EnumDef</span><span class="op">&gt;</span>),
     <span class="ident">Const</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">ConstDef</span><span class="op">&gt;</span>),
     <span class="ident">Static</span>(<span class="ident">FileAstId</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">StaticDef</span><span class="op">&gt;</span>),
@@ -550,7 +546,13 @@
                 <span class="kw">return</span>;
             }
             <span class="ident">ast</span>::<span class="ident">ModuleItemKind</span>::<span class="ident">StructDef</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> {
-                (<span class="ident">DefKind</span>::<span class="ident">Struct</span>(<span class="self">self</span>.<span class="ident">source_ast_id_map</span>.<span class="ident">ast_id</span>(<span class="ident">it</span>)), <span class="ident">it</span>.<span class="ident">name</span>())
+                <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source_ast_id_map</span>.<span class="ident">ast_id</span>(<span class="ident">it</span>);
+                <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">it</span>.<span class="ident">name</span>();
+                <span class="kw">if</span> <span class="ident">it</span>.<span class="ident">is_union</span>() {
+                    (<span class="ident">DefKind</span>::<span class="ident">Union</span>(<span class="ident">id</span>), <span class="ident">name</span>)
+                } <span class="kw">else</span> {
+                    (<span class="ident">DefKind</span>::<span class="ident">Struct</span>(<span class="ident">id</span>), <span class="ident">name</span>)
+                }
             }
             <span class="ident">ast</span>::<span class="ident">ModuleItemKind</span>::<span class="ident">EnumDef</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> {
                 (<span class="ident">DefKind</span>::<span class="ident">Enum</span>(<span class="self">self</span>.<span class="ident">source_ast_id_map</span>.<span class="ident">ast_id</span>(<span class="ident">it</span>)), <span class="ident">it</span>.<span class="ident">name</span>())

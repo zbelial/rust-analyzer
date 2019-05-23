@@ -1431,6 +1431,11 @@
 <span id="1431">1431</span>
 <span id="1432">1432</span>
 <span id="1433">1433</span>
+<span id="1434">1434</span>
+<span id="1435">1435</span>
+<span id="1436">1436</span>
+<span id="1437">1437</span>
+<span id="1438">1438</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type inference, i.e. the process of walking through the code and determining</span>
 <span class="doccomment">//! the type of each expression and pattern.</span>
@@ -1461,13 +1466,13 @@
 <span class="kw">use</span> <span class="ident">test_utils</span>::<span class="ident">tested_by</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">Function</span>, <span class="ident">StructField</span>, <span class="ident">Path</span>, <span class="ident">Name</span>,
-    <span class="ident">FnSignature</span>, <span class="ident">AdtDef</span>,<span class="ident">ConstSignature</span>,
-    <span class="ident">HirDatabase</span>,
-    <span class="ident">DefWithBody</span>,
-    <span class="ident">ImplItem</span>,
+    <span class="ident">Function</span>, <span class="ident">StructField</span>, <span class="ident">Path</span>, <span class="ident">Name</span>, <span class="ident">FnSignature</span>, <span class="ident">AdtDef</span>, <span class="ident">ConstSignature</span>, <span class="ident">HirDatabase</span>,
+    <span class="ident">DefWithBody</span>, <span class="ident">ImplItem</span>,
     <span class="ident">type_ref</span>::{<span class="ident">TypeRef</span>, <span class="ident">Mutability</span>},
-    <span class="ident">expr</span>::{<span class="ident">Body</span>, <span class="ident">Expr</span>, <span class="ident">BindingAnnotation</span>, <span class="ident">Literal</span>, <span class="ident">ExprId</span>, <span class="ident">Pat</span>, <span class="ident">PatId</span>, <span class="ident">UnaryOp</span>, <span class="ident">BinaryOp</span>, <span class="ident">Statement</span>, <span class="ident">FieldPat</span>,<span class="ident">Array</span>, <span class="self">self</span>},
+    <span class="ident">expr</span>::{
+        <span class="ident">Body</span>, <span class="ident">Expr</span>, <span class="ident">BindingAnnotation</span>, <span class="ident">Literal</span>, <span class="ident">ExprId</span>, <span class="ident">Pat</span>, <span class="ident">PatId</span>, <span class="ident">UnaryOp</span>, <span class="ident">BinaryOp</span>, <span class="ident">Statement</span>,
+        <span class="ident">FieldPat</span>, <span class="ident">Array</span>, <span class="self">self</span>,
+    },
     <span class="ident">generics</span>::{<span class="ident">GenericParams</span>, <span class="ident">HasGenericParams</span>},
     <span class="ident">path</span>::{<span class="ident">GenericArgs</span>, <span class="ident">GenericArg</span>},
     <span class="ident">ModuleDef</span>,
@@ -2078,7 +2083,8 @@
                 <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">insert_type_vars</span>(<span class="ident">ty</span>.<span class="ident">apply_substs</span>(<span class="ident">substs</span>));
                 (<span class="ident">ty</span>, <span class="prelude-val">Some</span>(<span class="ident">var</span>.<span class="ident">into</span>()))
             }
-            <span class="ident">TypableDef</span>::<span class="ident">TypeAlias</span>(<span class="kw">_</span>)
+            <span class="ident">TypableDef</span>::<span class="ident">Union</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">TypeAlias</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Function</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Const</span>(<span class="kw">_</span>)
@@ -2841,7 +2847,11 @@
 }
 
 <span class="kw">mod</span> <span class="ident">diagnostics</span> {
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">expr</span>::<span class="ident">ExprId</span>, <span class="ident">diagnostics</span>::{<span class="ident">DiagnosticSink</span>, <span class="ident">NoSuchField</span>}, <span class="ident">HirDatabase</span>, <span class="ident">Function</span>};
+    <span class="kw">use</span> <span class="kw">crate</span>::{
+        <span class="ident">expr</span>::<span class="ident">ExprId</span>,
+        <span class="ident">diagnostics</span>::{<span class="ident">DiagnosticSink</span>, <span class="ident">NoSuchField</span>},
+        <span class="ident">HirDatabase</span>, <span class="ident">Function</span>,
+};
 
     <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum</span> <span class="ident">InferenceDiagnostic</span> {

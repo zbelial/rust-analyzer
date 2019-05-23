@@ -209,6 +209,13 @@
 <span id="209">209</span>
 <span id="210">210</span>
 <span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Many kinds of items or constructs can have generic parameters: functions,</span>
 <span class="doccomment">//! structs, impls, traits, etc. This module provides a common HIR for these</span>
@@ -221,7 +228,7 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">db</span>::{ <span class="ident">HirDatabase</span>, <span class="ident">DefDatabase</span>},
-    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>, <span class="ident">Container</span>, <span class="ident">path</span>::<span class="ident">Path</span>, <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>, <span class="ident">AdtDef</span>
+    <span class="ident">Name</span>, <span class="ident">AsName</span>, <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>, <span class="ident">Container</span>, <span class="ident">path</span>::<span class="ident">Path</span>, <span class="ident">type_ref</span>::<span class="ident">TypeRef</span>, <span class="ident">AdtDef</span>
 };
 
 <span class="doccomment">/// Data about a generic parameter (to a function, struct, impl, ...).</span>
@@ -254,12 +261,13 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">GenericDef</span> {
     <span class="ident">Function</span>(<span class="ident">Function</span>),
     <span class="ident">Struct</span>(<span class="ident">Struct</span>),
+    <span class="ident">Union</span>(<span class="ident">Union</span>),
     <span class="ident">Enum</span>(<span class="ident">Enum</span>),
     <span class="ident">Trait</span>(<span class="ident">Trait</span>),
     <span class="ident">TypeAlias</span>(<span class="ident">TypeAlias</span>),
     <span class="ident">ImplBlock</span>(<span class="ident">ImplBlock</span>),
 }
-<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">GenericDef</span>: <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>);
+<span class="macro">impl_froms</span><span class="macro">!</span>(<span class="ident">GenericDef</span>: <span class="ident">Function</span>, <span class="ident">Struct</span>, <span class="ident">Union</span>, <span class="ident">Enum</span>, <span class="ident">Trait</span>, <span class="ident">TypeAlias</span>, <span class="ident">ImplBlock</span>);
 
 <span class="kw">impl</span> <span class="ident">GenericParams</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">generic_params_query</span>(
@@ -270,7 +278,10 @@
         <span class="kw">let</span> <span class="ident">parent</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">def</span> {
             <span class="ident">GenericDef</span>::<span class="ident">Function</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">it</span>.<span class="ident">container</span>(<span class="ident">db</span>).<span class="ident">map</span>(<span class="ident">GenericDef</span>::<span class="ident">from</span>),
             <span class="ident">GenericDef</span>::<span class="ident">TypeAlias</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">it</span>.<span class="ident">container</span>(<span class="ident">db</span>).<span class="ident">map</span>(<span class="ident">GenericDef</span>::<span class="ident">from</span>),
-            <span class="ident">GenericDef</span>::<span class="ident">Struct</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">GenericDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">GenericDef</span>::<span class="ident">Trait</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
+            <span class="ident">GenericDef</span>::<span class="ident">Struct</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">GenericDef</span>::<span class="ident">Union</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">GenericDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">GenericDef</span>::<span class="ident">Trait</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
             <span class="ident">GenericDef</span>::<span class="ident">ImplBlock</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
         };
         <span class="ident">generics</span>.<span class="ident">parent_params</span> <span class="op">=</span> <span class="ident">parent</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">db</span>.<span class="ident">generic_params</span>(<span class="ident">p</span>));
@@ -278,6 +289,7 @@
         <span class="kw">match</span> <span class="ident">def</span> {
             <span class="ident">GenericDef</span>::<span class="ident">Function</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">generics</span>.<span class="ident">fill</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">it</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>, <span class="ident">start</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Struct</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">generics</span>.<span class="ident">fill</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">it</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>, <span class="ident">start</span>),
+            <span class="ident">GenericDef</span>::<span class="ident">Union</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">generics</span>.<span class="ident">fill</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">it</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>, <span class="ident">start</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Enum</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">generics</span>.<span class="ident">fill</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">it</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>, <span class="ident">start</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Trait</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> {
                 <span class="comment">// traits get the Self type as an implicit first type parameter</span>
@@ -383,6 +395,7 @@
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident">GenericDef</span>::<span class="ident">Function</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Struct</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
+            <span class="ident">GenericDef</span>::<span class="ident">Union</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Enum</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
             <span class="ident">GenericDef</span>::<span class="ident">Trait</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
             <span class="ident">GenericDef</span>::<span class="ident">TypeAlias</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="ident">inner</span>.<span class="ident">resolver</span>(<span class="ident">db</span>),
@@ -404,6 +417,7 @@
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">adt</span>: <span class="kw">crate</span>::<span class="ident">adt</span>::<span class="ident">AdtDef</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
         <span class="kw">match</span> <span class="ident">adt</span> {
             <span class="ident">AdtDef</span>::<span class="ident">Struct</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">s</span>.<span class="ident">into</span>(),
+            <span class="ident">AdtDef</span>::<span class="ident">Union</span>(<span class="ident">u</span>) <span class="op">=&gt;</span> <span class="ident">u</span>.<span class="ident">into</span>(),
             <span class="ident">AdtDef</span>::<span class="ident">Enum</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">into</span>(),
         }
     }

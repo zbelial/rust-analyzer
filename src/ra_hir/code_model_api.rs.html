@@ -795,6 +795,44 @@
 <span id="795">795</span>
 <span id="796">796</span>
 <span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -869,6 +907,7 @@
     <span class="ident">Module</span>(<span class="ident">Module</span>),
     <span class="ident">Function</span>(<span class="ident">Function</span>),
     <span class="ident">Struct</span>(<span class="ident">Struct</span>),
+    <span class="ident">Union</span>(<span class="ident">Union</span>),
     <span class="ident">Enum</span>(<span class="ident">Enum</span>),
     <span class="comment">// Can&#39;t be directly declared, but can be imported.</span>
     <span class="ident">EnumVariant</span>(<span class="ident">EnumVariant</span>),
@@ -881,6 +920,7 @@
     <span class="ident">ModuleDef</span>: <span class="ident">Module</span>,
     <span class="ident">Function</span>,
     <span class="ident">Struct</span>,
+    <span class="ident">Union</span>,
     <span class="ident">Enum</span>,
     <span class="ident">EnumVariant</span>,
     <span class="ident">Const</span>,
@@ -1118,6 +1158,42 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Docs</span> <span class="kw">for</span> <span class="ident">Struct</span> {
+    <span class="kw">fn</span> <span class="ident">docs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Documentation</span><span class="op">&gt;</span> {
+        <span class="ident">docs_from_ast</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>)
+    }
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Union</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">id</span>: <span class="ident">StructId</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Union</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">DefDatabase</span>) <span class="op">-&gt;</span> (<span class="ident">HirFileId</span>, <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">ast</span>::<span class="ident">StructDef</span><span class="op">&gt;</span>) {
+        <span class="self">self</span>.<span class="ident">id</span>.<span class="ident">source</span>(<span class="ident">db</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Name</span><span class="op">&gt;</span> {
+        <span class="ident">db</span>.<span class="ident">struct_data</span>(<span class="ident">Struct</span> { <span class="ident">id</span>: <span class="self">self</span>.<span class="ident">id</span> }).<span class="ident">name</span>.<span class="ident">clone</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="ident">Module</span> {
+        <span class="self">self</span>.<span class="ident">id</span>.<span class="ident">module</span>(<span class="ident">db</span>)
+    }
+
+    <span class="comment">// FIXME move to a more general type</span>
+    <span class="doccomment">/// Builds a resolver for type references inside this union.</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">resolver</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="ident">Resolver</span> {
+        <span class="comment">// take the outer scope...</span>
+        <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">db</span>).<span class="ident">resolver</span>(<span class="ident">db</span>);
+        <span class="comment">// ...and add generic params, if present</span>
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">generic_params</span>(<span class="ident">db</span>);
+        <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">params</span>.<span class="ident">is_empty</span>() { <span class="ident">r</span>.<span class="ident">push_generic_params_scope</span>(<span class="ident">p</span>) } <span class="kw">else</span> { <span class="ident">r</span> };
+        <span class="ident">r</span>
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Docs</span> <span class="kw">for</span> <span class="ident">Union</span> {
     <span class="kw">fn</span> <span class="ident">docs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">HirDatabase</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Documentation</span><span class="op">&gt;</span> {
         <span class="ident">docs_from_ast</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">source</span>(<span class="ident">db</span>).<span class="number">1</span>)
     }
