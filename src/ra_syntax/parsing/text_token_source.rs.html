@@ -65,11 +65,33 @@
 <span id="65">65</span>
 <span id="66">66</span>
 <span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_parser</span>::<span class="ident">TokenSource</span>;
+<span class="kw">use</span> <span class="ident">ra_parser</span>::<span class="ident">Token</span> <span class="kw">as</span> <span class="ident">PToken</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">SyntaxKind</span>, <span class="ident">SyntaxKind</span>::<span class="ident">EOF</span>, <span class="ident">TextRange</span>, <span class="ident">TextUnit</span>,
+    <span class="ident">SyntaxKind</span>::<span class="ident">EOF</span>, <span class="ident">TextRange</span>, <span class="ident">TextUnit</span>,
     <span class="ident">parsing</span>::<span class="ident">lexer</span>::<span class="ident">Token</span>,
 };
 
@@ -91,29 +113,48 @@
     <span class="doccomment">/// ```</span>
     <span class="doccomment">/// tokens: `[struct, Foo, {, }]`</span>
     <span class="ident">tokens</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Token</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Current token and position</span>
+    <span class="ident">curr</span>: (<span class="ident">PToken</span>, <span class="ident">usize</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="ident">TokenSource</span> <span class="kw">for</span> <span class="ident">TextTokenSource</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">token_kind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pos</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">SyntaxKind</span> {
-        <span class="kw">if</span> <span class="op">!</span>(<span class="ident">pos</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">tokens</span>.<span class="ident">len</span>()) {
-            <span class="kw">return</span> <span class="ident">EOF</span>;
-        }
-        <span class="self">self</span>.<span class="ident">tokens</span>[<span class="ident">pos</span>].<span class="ident">kind</span>
+    <span class="kw">fn</span> <span class="ident">current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">PToken</span> {
+        <span class="kw">return</span> <span class="self">self</span>.<span class="ident">curr</span>.<span class="number">0</span>;
     }
-    <span class="kw">fn</span> <span class="ident">is_token_joint_to_next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pos</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">if</span> <span class="op">!</span>(<span class="ident">pos</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">tokens</span>.<span class="ident">len</span>()) {
-            <span class="kw">return</span> <span class="bool-val">true</span>;
-        }
-        <span class="self">self</span>.<span class="ident">start_offsets</span>[<span class="ident">pos</span>] <span class="op">+</span> <span class="self">self</span>.<span class="ident">tokens</span>[<span class="ident">pos</span>].<span class="ident">len</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">start_offsets</span>[<span class="ident">pos</span> <span class="op">+</span> <span class="number">1</span>]
+
+    <span class="kw">fn</span> <span class="ident">lookahead_nth</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">PToken</span> {
+        <span class="ident">mk_token</span>(<span class="self">self</span>.<span class="ident">curr</span>.<span class="number">1</span> <span class="op">+</span> <span class="ident">n</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">start_offsets</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tokens</span>)
     }
-    <span class="kw">fn</span> <span class="ident">is_keyword</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pos</span>: <span class="ident">usize</span>, <span class="ident">kw</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+
+    <span class="kw">fn</span> <span class="ident">bump</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">curr</span>.<span class="number">0</span>.<span class="ident">kind</span> <span class="op">==</span> <span class="ident">EOF</span> {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">let</span> <span class="ident">pos</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">curr</span>.<span class="number">1</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="self">self</span>.<span class="ident">curr</span> <span class="op">=</span> (<span class="ident">mk_token</span>(<span class="ident">pos</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">start_offsets</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tokens</span>), <span class="ident">pos</span>);
+    }
+
+    <span class="kw">fn</span> <span class="ident">is_keyword</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kw</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="ident">pos</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">curr</span>.<span class="number">1</span>;
         <span class="kw">if</span> <span class="op">!</span>(<span class="ident">pos</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">tokens</span>.<span class="ident">len</span>()) {
             <span class="kw">return</span> <span class="bool-val">false</span>;
         }
         <span class="kw">let</span> <span class="ident">range</span> <span class="op">=</span> <span class="ident">TextRange</span>::<span class="ident">offset_len</span>(<span class="self">self</span>.<span class="ident">start_offsets</span>[<span class="ident">pos</span>], <span class="self">self</span>.<span class="ident">tokens</span>[<span class="ident">pos</span>].<span class="ident">len</span>);
-
         <span class="self">self</span>.<span class="ident">text</span>[<span class="ident">range</span>] <span class="op">==</span> <span class="kw-2">*</span><span class="ident">kw</span>
     }
+}
+
+<span class="kw">fn</span> <span class="ident">mk_token</span>(<span class="ident">pos</span>: <span class="ident">usize</span>, <span class="ident">start_offsets</span>: <span class="kw-2">&amp;</span>[<span class="ident">TextUnit</span>], <span class="ident">tokens</span>: <span class="kw-2">&amp;</span>[<span class="ident">Token</span>]) <span class="op">-&gt;</span> <span class="ident">PToken</span> {
+    <span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="ident">tokens</span>.<span class="ident">get</span>(<span class="ident">pos</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">t</span>.<span class="ident">kind</span>).<span class="ident">unwrap_or</span>(<span class="ident">EOF</span>);
+    <span class="kw">let</span> <span class="ident">is_jointed_to_next</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">pos</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="ident">start_offsets</span>.<span class="ident">len</span>() {
+        <span class="ident">start_offsets</span>[<span class="ident">pos</span>] <span class="op">+</span> <span class="ident">tokens</span>[<span class="ident">pos</span>].<span class="ident">len</span> <span class="op">==</span> <span class="ident">start_offsets</span>[<span class="ident">pos</span> <span class="op">+</span> <span class="number">1</span>]
+    } <span class="kw">else</span> {
+        <span class="bool-val">false</span>
+    };
+
+    <span class="ident">PToken</span> { <span class="ident">kind</span>, <span class="ident">is_jointed_to_next</span> }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="ident">TextTokenSource</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
@@ -130,7 +171,8 @@
             <span class="ident">len</span> <span class="op">+=</span> <span class="ident">token</span>.<span class="ident">len</span>;
         }
 
-        <span class="ident">TextTokenSource</span> { <span class="ident">text</span>, <span class="ident">start_offsets</span>, <span class="ident">tokens</span> }
+        <span class="kw">let</span> <span class="ident">first</span> <span class="op">=</span> <span class="ident">mk_token</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">start_offsets</span>, <span class="kw-2">&amp;</span><span class="ident">tokens</span>);
+        <span class="ident">TextTokenSource</span> { <span class="ident">text</span>, <span class="ident">start_offsets</span>, <span class="ident">tokens</span>, <span class="ident">curr</span>: (<span class="ident">first</span>, <span class="number">0</span>) }
     }
 }
 </pre></div>
