@@ -65,6 +65,9 @@
 <span id="65">65</span>
 <span id="66">66</span>
 <span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">analysis_stats</span>;
 
@@ -84,7 +87,10 @@
         .<span class="ident">setting</span>(<span class="ident">clap</span>::<span class="ident">AppSettings</span>::<span class="ident">SubcommandRequiredElseHelp</span>)
         .<span class="ident">subcommand</span>(<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;parse&quot;</span>).<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;no-dump&quot;</span>).<span class="ident">long</span>(<span class="string">&quot;--no-dump&quot;</span>)))
         .<span class="ident">subcommand</span>(<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;symbols&quot;</span>))
-        .<span class="ident">subcommand</span>(<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;highlight&quot;</span>))
+        .<span class="ident">subcommand</span>(
+            <span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;highlight&quot;</span>)
+                .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;rainbow&quot;</span>).<span class="ident">short</span>(<span class="string">&quot;r&quot;</span>).<span class="ident">long</span>(<span class="string">&quot;rainbow&quot;</span>)),
+        )
         .<span class="ident">subcommand</span>(
             <span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;analysis-stats&quot;</span>)
                 .<span class="ident">arg</span>(<span class="ident">Arg</span>::<span class="ident">with_name</span>(<span class="string">&quot;verbose&quot;</span>).<span class="ident">short</span>(<span class="string">&quot;v&quot;</span>).<span class="ident">long</span>(<span class="string">&quot;verbose&quot;</span>))
@@ -107,9 +113,9 @@
                 <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">s</span>);
             }
         }
-        (<span class="string">&quot;highlight&quot;</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> {
+        (<span class="string">&quot;highlight&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=&gt;</span> {
             <span class="kw">let</span> (<span class="ident">analysis</span>, <span class="ident">file_id</span>) <span class="op">=</span> <span class="ident">Analysis</span>::<span class="ident">from_single_file</span>(<span class="ident">read_stdin</span>()<span class="question-mark">?</span>);
-            <span class="kw">let</span> <span class="ident">html</span> <span class="op">=</span> <span class="ident">analysis</span>.<span class="ident">highlight_as_html</span>(<span class="ident">file_id</span>).<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="ident">html</span> <span class="op">=</span> <span class="ident">analysis</span>.<span class="ident">highlight_as_html</span>(<span class="ident">file_id</span>, <span class="ident">matches</span>.<span class="ident">is_present</span>(<span class="string">&quot;rainbow&quot;</span>)).<span class="ident">unwrap</span>();
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">html</span>);
         }
         (<span class="string">&quot;analysis-stats&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=&gt;</span> {

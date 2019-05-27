@@ -977,8 +977,8 @@
     }
 
     <span class="doccomment">/// Computes syntax highlighting for the given file.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">highlight_as_html</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">file_id</span>: <span class="ident">FileId</span>) <span class="op">-&gt;</span> <span class="ident">Cancelable</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">with_db</span>(<span class="op">|</span><span class="ident">db</span><span class="op">|</span> <span class="ident">syntax_highlighting</span>::<span class="ident">highlight_as_html</span>(<span class="ident">db</span>, <span class="ident">file_id</span>))
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">highlight_as_html</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">file_id</span>: <span class="ident">FileId</span>, <span class="ident">rainbow</span>: <span class="ident">bool</span>) <span class="op">-&gt;</span> <span class="ident">Cancelable</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">with_db</span>(<span class="op">|</span><span class="ident">db</span><span class="op">|</span> <span class="ident">syntax_highlighting</span>::<span class="ident">highlight_as_html</span>(<span class="ident">db</span>, <span class="ident">file_id</span>, <span class="ident">rainbow</span>))
     }
 
     <span class="doccomment">/// Computes completions at the given position.</span>
@@ -986,7 +986,7 @@
         <span class="self">self</span>.<span class="ident">with_db</span>(<span class="op">|</span><span class="ident">db</span><span class="op">|</span> <span class="ident">completion</span>::<span class="ident">completions</span>(<span class="ident">db</span>, <span class="ident">position</span>).<span class="ident">map</span>(<span class="ident">Into</span>::<span class="ident">into</span>))
     }
 
-    <span class="doccomment">/// Computes assists (aks code actons aka intentions) for the given</span>
+    <span class="doccomment">/// Computes assists (aka code actions aka intentions) for the given</span>
     <span class="doccomment">/// position.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assists</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">frange</span>: <span class="ident">FileRange</span>) <span class="op">-&gt;</span> <span class="ident">Cancelable</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Assist</span><span class="op">&gt;&gt;</span> {
         <span class="self">self</span>.<span class="ident">with_db</span>(<span class="op">|</span><span class="ident">db</span><span class="op">|</span> <span class="ident">assists</span>::<span class="ident">assists</span>(<span class="ident">db</span>, <span class="ident">frange</span>))
