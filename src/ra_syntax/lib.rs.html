@@ -256,6 +256,40 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Syntax Tree library used throughout the rust analyzer.</span>
 <span class="doccomment">//!</span>
@@ -290,6 +324,12 @@
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">fuzz</span>;
 
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">fmt</span>::<span class="ident">Write</span>};
+
+<span class="kw">use</span> <span class="ident">ra_text_edit</span>::<span class="ident">AtomTextEdit</span>;
+
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">syntax_node</span>::<span class="ident">GreenNode</span>;
+
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rowan</span>::{<span class="ident">SmolStr</span>, <span class="ident">TextRange</span>, <span class="ident">TextUnit</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">ra_parser</span>::<span class="ident">SyntaxKind</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">ra_parser</span>::<span class="ident">T</span>;
@@ -302,15 +342,60 @@
     <span class="ident">parsing</span>::{<span class="ident">tokenize</span>, <span class="ident">classify_literal</span>, <span class="ident">Token</span>},
 };
 
-<span class="kw">use</span> <span class="ident">ra_text_edit</span>::<span class="ident">AtomTextEdit</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">syntax_node</span>::<span class="ident">GreenNode</span>;
+<span class="doccomment">/// `Parse` is the result of the parsing: a syntax tree and a collection of</span>
+<span class="doccomment">/// errors.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Note that we always produce a syntax tree, even for completely invalid</span>
+<span class="doccomment">/// files.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Parse</span> {
+    <span class="kw">pub</span> <span class="ident">tree</span>: <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">errors</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SyntaxError</span><span class="op">&gt;&gt;</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Parse</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ok</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SyntaxError</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">errors</span>.<span class="ident">is_empty</span>() {
+            <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">tree</span>)
+        } <span class="kw">else</span> {
+            <span class="prelude-val">Err</span>(<span class="self">self</span>.<span class="ident">errors</span>)
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="ident">Parse</span> {
+        <span class="self">self</span>.<span class="ident">incremental_reparse</span>(<span class="ident">edit</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="self">self</span>.<span class="ident">full_reparse</span>(<span class="ident">edit</span>))
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">debug_dump</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tree</span>.<span class="ident">syntax</span>().<span class="ident">debug_dump</span>();
+        <span class="kw">for</span> <span class="ident">err</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">errors</span>.<span class="ident">iter</span>() {
+            <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">buf</span>, <span class="string">&quot;err: `{}`&quot;</span>, <span class="ident">err</span>).<span class="ident">unwrap</span>();
+        }
+        <span class="ident">buf</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">incremental_reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Parse</span><span class="op">&gt;</span> {
+        <span class="comment">// FIXME: validation errors are not handled here</span>
+        <span class="ident">parsing</span>::<span class="ident">incremental_reparse</span>(<span class="self">self</span>.<span class="ident">tree</span>.<span class="ident">syntax</span>(), <span class="ident">edit</span>, <span class="self">self</span>.<span class="ident">errors</span>.<span class="ident">to_vec</span>()).<span class="ident">map</span>(
+            <span class="op">|</span>(<span class="ident">green_node</span>, <span class="ident">errors</span>, <span class="ident">_reparsed_range</span>)<span class="op">|</span> <span class="ident">Parse</span> {
+                <span class="ident">tree</span>: <span class="ident">SourceFile</span>::<span class="ident">new</span>(<span class="ident">green_node</span>),
+                <span class="ident">errors</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">errors</span>),
+            },
+        )
+    }
+
+    <span class="kw">fn</span> <span class="ident">full_reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="ident">Parse</span> {
+        <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">edit</span>.<span class="ident">apply</span>(<span class="self">self</span>.<span class="ident">tree</span>.<span class="ident">syntax</span>().<span class="ident">text</span>().<span class="ident">to_string</span>());
+        <span class="ident">SourceFile</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>)
+    }
+}
 
 <span class="doccomment">/// `SourceFile` represents a parse tree for a single Rust file.</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ast</span>::<span class="ident">SourceFile</span>;
 
 <span class="kw">impl</span> <span class="ident">SourceFile</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">green</span>: <span class="ident">GreenNode</span>, <span class="ident">errors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SyntaxError</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">SyntaxNode</span>::<span class="ident">new</span>(<span class="ident">green</span>, <span class="ident">errors</span>);
+    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">green</span>: <span class="ident">GreenNode</span>) <span class="op">-&gt;</span> <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">SyntaxNode</span>::<span class="ident">new</span>(<span class="ident">green</span>);
         <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">debug_assertions</span>) {
             <span class="ident">validation</span>::<span class="ident">validate_block_structure</span>(<span class="kw-2">&amp;</span><span class="ident">root</span>);
         }
@@ -318,29 +403,11 @@
         <span class="ident">TreeArc</span>::<span class="ident">cast</span>(<span class="ident">root</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(<span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">green</span>, <span class="ident">errors</span>) <span class="op">=</span> <span class="ident">parsing</span>::<span class="ident">parse_text</span>(<span class="ident">text</span>);
-        <span class="ident">SourceFile</span>::<span class="ident">new</span>(<span class="ident">green</span>, <span class="ident">errors</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">incremental_reparse</span>(<span class="ident">edit</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="self">self</span>.<span class="ident">full_reparse</span>(<span class="ident">edit</span>))
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">incremental_reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;&gt;</span> {
-        <span class="ident">parsing</span>::<span class="ident">incremental_reparse</span>(<span class="self">self</span>.<span class="ident">syntax</span>(), <span class="ident">edit</span>, <span class="self">self</span>.<span class="ident">errors</span>())
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">green_node</span>, <span class="ident">errors</span>, <span class="ident">_reparsed_range</span>)<span class="op">|</span> <span class="ident">SourceFile</span>::<span class="ident">new</span>(<span class="ident">green_node</span>, <span class="ident">errors</span>))
-    }
-
-    <span class="kw">fn</span> <span class="ident">full_reparse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">edit</span>: <span class="kw-2">&amp;</span><span class="ident">AtomTextEdit</span>) <span class="op">-&gt;</span> <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">edit</span>.<span class="ident">apply</span>(<span class="self">self</span>.<span class="ident">syntax</span>().<span class="ident">text</span>().<span class="ident">to_string</span>());
-        <span class="ident">SourceFile</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">errors</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SyntaxError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">errors</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">syntax</span>.<span class="ident">root_data</span>().<span class="ident">to_vec</span>();
-        <span class="ident">errors</span>.<span class="ident">extend</span>(<span class="ident">validation</span>::<span class="ident">validate</span>(<span class="self">self</span>));
-        <span class="ident">errors</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(<span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">Parse</span> {
+        <span class="kw">let</span> (<span class="ident">green</span>, <span class="kw-2">mut</span> <span class="ident">errors</span>) <span class="op">=</span> <span class="ident">parsing</span>::<span class="ident">parse_text</span>(<span class="ident">text</span>);
+        <span class="kw">let</span> <span class="ident">tree</span> <span class="op">=</span> <span class="ident">SourceFile</span>::<span class="ident">new</span>(<span class="ident">green</span>);
+        <span class="ident">errors</span>.<span class="ident">extend</span>(<span class="ident">validation</span>::<span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="ident">tree</span>));
+        <span class="ident">Parse</span> { <span class="ident">tree</span>, <span class="ident">errors</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">errors</span>) }
     }
 }
 
@@ -357,14 +424,15 @@
     &quot;</span>;
     <span class="comment">// `SourceFile` is the main entry point.</span>
     <span class="comment">//</span>
-    <span class="comment">// Note how `parse` does not return a `Result`: even completely invalid</span>
-    <span class="comment">// source code might be parsed.</span>
-    <span class="kw">let</span> <span class="ident">file</span> <span class="op">=</span> <span class="ident">SourceFile</span>::<span class="ident">parse</span>(<span class="ident">source_code</span>);
+    <span class="comment">// The `parse` method returns a `Parse` -- a pair of syntax tree and a list</span>
+    <span class="comment">// of errors. That is, syntax tree is constructed even in presence of errors.</span>
+    <span class="kw">let</span> <span class="ident">parse</span> <span class="op">=</span> <span class="ident">SourceFile</span>::<span class="ident">parse</span>(<span class="ident">source_code</span>);
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">parse</span>.<span class="ident">errors</span>.<span class="ident">is_empty</span>());
 
     <span class="comment">// Due to the way ownership is set up, owned syntax Nodes always live behind</span>
     <span class="comment">// a `TreeArc` smart pointer. `TreeArc` is roughly an `std::sync::Arc` which</span>
     <span class="comment">// points to the whole file instead of an individual node.</span>
-    <span class="kw">let</span> <span class="ident">file</span>: <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">file</span>;
+    <span class="kw">let</span> <span class="ident">file</span>: <span class="ident">TreeArc</span><span class="op">&lt;</span><span class="ident">SourceFile</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">parse</span>.<span class="ident">tree</span>;
 
     <span class="comment">// `SourceFile` is the root of the syntax tree. We can iterate file&#39;s items:</span>
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">func</span> <span class="op">=</span> <span class="prelude-val">None</span>;

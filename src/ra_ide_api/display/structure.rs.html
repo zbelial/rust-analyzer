@@ -188,6 +188,8 @@
 <span id="188">188</span>
 <span id="189">189</span>
 <span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">TextRange</span>;
 
@@ -374,7 +376,9 @@ fn obsolete() {}
 #[deprecated(note = &quot;for awhile&quot;)]
 fn very_obsolete() {}
 &quot;#</span>,
-        );
+        )
+        .<span class="ident">ok</span>()
+        .<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">structure</span> <span class="op">=</span> <span class="ident">file_structure</span>(<span class="kw-2">&amp;</span><span class="ident">file</span>);
         <span class="macro">assert_debug_snapshot_matches</span><span class="macro">!</span>(<span class="string">&quot;file_structure&quot;</span>, <span class="ident">structure</span>);
     }
