@@ -201,10 +201,40 @@
 <span id="201">201</span>
 <span id="202">202</span>
 <span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>},
     <span class="ident">sync</span>::<span class="ident">Arc</span>,
+    <span class="ident">time</span>::<span class="ident">Duration</span>,
 };
 
 <span class="kw">use</span> <span class="ident">lsp_types</span>::<span class="ident">Url</span>;
@@ -232,12 +262,26 @@
     <span class="kw">pub</span> <span class="ident">workspaces</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ProjectWorkspace</span><span class="op">&gt;&gt;</span>,
     <span class="kw">pub</span> <span class="ident">analysis_host</span>: <span class="ident">AnalysisHost</span>,
     <span class="kw">pub</span> <span class="ident">vfs</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Vfs</span><span class="op">&gt;&gt;</span>,
+    <span class="comment">// hand-rolling VecDeque here to print things in a nicer way</span>
+    <span class="kw">pub</span> <span class="ident">latest_completed_requests</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span>[<span class="ident">CompletedRequest</span>; <span class="ident">N_COMPLETED_REQUESTS</span>]<span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">request_idx</span>: <span class="ident">usize</span>,
 }
+
+<span class="kw">const</span> <span class="ident">N_COMPLETED_REQUESTS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">10</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ServerWorld</span> {
     <span class="kw">pub</span> <span class="ident">workspaces</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ProjectWorkspace</span><span class="op">&gt;&gt;</span>,
     <span class="kw">pub</span> <span class="ident">analysis</span>: <span class="ident">Analysis</span>,
     <span class="kw">pub</span> <span class="ident">vfs</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Vfs</span><span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">latest_completed_requests</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span>[<span class="ident">CompletedRequest</span>; <span class="ident">N_COMPLETED_REQUESTS</span>]<span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">request_idx</span>: <span class="ident">usize</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CompletedRequest</span> {
+    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">u64</span>,
+    <span class="kw">pub</span> <span class="ident">method</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">duration</span>: <span class="ident">Duration</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">ServerWorldState</span> {
@@ -277,6 +321,8 @@
             <span class="ident">workspaces</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">workspaces</span>),
             <span class="ident">analysis_host</span>,
             <span class="ident">vfs</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">vfs</span>)),
+            <span class="ident">latest_completed_requests</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">request_idx</span>: <span class="number">0</span>,
         }
     }
 
@@ -341,6 +387,8 @@
             <span class="ident">workspaces</span>: <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">workspaces</span>),
             <span class="ident">analysis</span>: <span class="self">self</span>.<span class="ident">analysis_host</span>.<span class="ident">analysis</span>(),
             <span class="ident">vfs</span>: <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">vfs</span>),
+            <span class="ident">latest_completed_requests</span>: <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">latest_completed_requests</span>),
+            <span class="ident">request_idx</span>: <span class="self">self</span>.<span class="ident">request_idx</span>.<span class="ident">checked_sub</span>(<span class="number">1</span>).<span class="ident">unwrap_or</span>(<span class="ident">N_COMPLETED_REQUESTS</span> <span class="op">-</span> <span class="number">1</span>),
         }
     }
 
@@ -350,6 +398,16 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">collect_garbage</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">analysis_host</span>.<span class="ident">collect_garbage</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">complete_request</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">request</span>: <span class="ident">CompletedRequest</span>) {
+        <span class="comment">// special case: don&#39;t track status request itself</span>
+        <span class="kw">if</span> <span class="ident">request</span>.<span class="ident">method</span> <span class="op">==</span> <span class="string">&quot;rust-analyzer/analyzerStatus&quot;</span> {
+            <span class="kw">return</span>;
+        }
+        <span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">request_idx</span>;
+        <span class="self">self</span>.<span class="ident">latest_completed_requests</span>.<span class="ident">write</span>()[<span class="ident">idx</span>] <span class="op">=</span> <span class="ident">request</span>;
+        <span class="self">self</span>.<span class="ident">request_idx</span> <span class="op">=</span> (<span class="ident">idx</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">%</span> <span class="ident">N_COMPLETED_REQUESTS</span>;
     }
 }
 
