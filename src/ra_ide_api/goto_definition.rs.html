@@ -452,6 +452,9 @@
 <span id="452">452</span>
 <span id="453">453</span>
 <span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">ra_db</span>::{<span class="ident">FileId</span>, <span class="ident">SourceDatabase</span>};
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::{
@@ -517,7 +520,10 @@
         <span class="prelude-val">Some</span>(<span class="ident">Macro</span>(<span class="ident">mac</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">NavigationTarget</span>::<span class="ident">from_macro_def</span>(<span class="ident">db</span>, <span class="ident">mac</span>)),
         <span class="prelude-val">Some</span>(<span class="ident">FieldAccess</span>(<span class="ident">field</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">NavigationTarget</span>::<span class="ident">from_field</span>(<span class="ident">db</span>, <span class="ident">field</span>)),
         <span class="prelude-val">Some</span>(<span class="ident">AssocItem</span>(<span class="ident">assoc</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">NavigationTarget</span>::<span class="ident">from_impl_item</span>(<span class="ident">db</span>, <span class="ident">assoc</span>)),
-        <span class="prelude-val">Some</span>(<span class="ident">Def</span>(<span class="ident">def</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">NavigationTarget</span>::<span class="ident">from_def</span>(<span class="ident">db</span>, <span class="ident">def</span>)),
+        <span class="prelude-val">Some</span>(<span class="ident">Def</span>(<span class="ident">def</span>)) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="ident">NavigationTarget</span>::<span class="ident">from_def</span>(<span class="ident">db</span>, <span class="ident">def</span>) {
+            <span class="prelude-val">Some</span>(<span class="ident">nav</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">nav</span>),
+            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Approximate</span>(<span class="macro">vec</span><span class="macro">!</span>[]),
+        },
         <span class="prelude-val">Some</span>(<span class="ident">SelfType</span>(<span class="ident">ty</span>)) <span class="op">=&gt;</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">def_id</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="ident">ty</span>.<span class="ident">as_adt</span>() {
                 <span class="kw">return</span> <span class="ident">Exact</span>(<span class="ident">NavigationTarget</span>::<span class="ident">from_adt_def</span>(<span class="ident">db</span>, <span class="ident">def_id</span>));

@@ -250,6 +250,11 @@
 <span id="250">250</span>
 <span id="251">251</span>
 <span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This modules takes care of rendering various defenitions as completion items.</span>
 <span class="kw">use</span> <span class="ident">join_to_string</span>::<span class="ident">join</span>;
@@ -310,6 +315,7 @@
             }
             <span class="prelude-val">Some</span>(<span class="ident">it</span>) <span class="op">=&gt;</span> <span class="ident">it</span>,
         };
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">completion_kind</span> <span class="op">=</span> <span class="ident">CompletionKind</span>::<span class="ident">Reference</span>;
         <span class="kw">let</span> (<span class="ident">kind</span>, <span class="ident">docs</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">def</span> {
             <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">Module</span>(<span class="ident">it</span>)) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">Module</span>, <span class="ident">it</span>.<span class="ident">docs</span>(<span class="ident">ctx</span>.<span class="ident">db</span>)),
             <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">Function</span>(<span class="ident">func</span>)) <span class="op">=&gt;</span> {
@@ -323,6 +329,10 @@
             <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">Static</span>(<span class="ident">it</span>)) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">Static</span>, <span class="ident">it</span>.<span class="ident">docs</span>(<span class="ident">ctx</span>.<span class="ident">db</span>)),
             <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">Trait</span>(<span class="ident">it</span>)) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">Trait</span>, <span class="ident">it</span>.<span class="ident">docs</span>(<span class="ident">ctx</span>.<span class="ident">db</span>)),
             <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">TypeAlias</span>(<span class="ident">it</span>)) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">TypeAlias</span>, <span class="ident">it</span>.<span class="ident">docs</span>(<span class="ident">ctx</span>.<span class="ident">db</span>)),
+            <span class="ident">Resolution</span>::<span class="ident">Def</span>(<span class="ident">BuiltinType</span>(..)) <span class="op">=&gt;</span> {
+                <span class="ident">completion_kind</span> <span class="op">=</span> <span class="ident">CompletionKind</span>::<span class="ident">BuiltinType</span>;
+                (<span class="ident">CompletionItemKind</span>::<span class="ident">BuiltinType</span>, <span class="prelude-val">None</span>)
+            }
             <span class="ident">Resolution</span>::<span class="ident">GenericParam</span>(..) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">TypeParam</span>, <span class="prelude-val">None</span>),
             <span class="ident">Resolution</span>::<span class="ident">LocalBinding</span>(..) <span class="op">=&gt;</span> (<span class="ident">CompletionItemKind</span>::<span class="ident">Binding</span>, <span class="prelude-val">None</span>),
             <span class="ident">Resolution</span>::<span class="ident">SelfType</span>(..) <span class="op">=&gt;</span> (
@@ -330,7 +340,7 @@
                 <span class="prelude-val">None</span>,
             ),
         };
-        <span class="ident">CompletionItem</span>::<span class="ident">new</span>(<span class="ident">CompletionKind</span>::<span class="ident">Reference</span>, <span class="ident">ctx</span>.<span class="ident">source_range</span>(), <span class="ident">local_name</span>)
+        <span class="ident">CompletionItem</span>::<span class="ident">new</span>(<span class="ident">completion_kind</span>, <span class="ident">ctx</span>.<span class="ident">source_range</span>(), <span class="ident">local_name</span>)
             .<span class="ident">kind</span>(<span class="ident">kind</span>)
             .<span class="ident">set_documentation</span>(<span class="ident">docs</span>)
             .<span class="ident">add_to</span>(<span class="self">self</span>)

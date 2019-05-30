@@ -276,6 +276,26 @@
 <span id="276">276</span>
 <span id="277">277</span>
 <span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">hir</span>::{<span class="ident">Resolution</span>, <span class="ident">Either</span>};
 <span class="kw">use</span> <span class="ident">ra_syntax</span>::<span class="ident">AstNode</span>;
@@ -296,6 +316,12 @@
         <span class="ident">hir</span>::<span class="ident">ModuleDef</span>::<span class="ident">Module</span>(<span class="ident">module</span>) <span class="op">=&gt;</span> {
             <span class="kw">let</span> <span class="ident">module_scope</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">scope</span>(<span class="ident">ctx</span>.<span class="ident">db</span>);
             <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">res</span>) <span class="kw">in</span> <span class="ident">module_scope</span>.<span class="ident">entries</span>() {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hir</span>::<span class="ident">ModuleDef</span>::<span class="ident">BuiltinType</span>(..)) <span class="op">=</span> <span class="ident">res</span>.<span class="ident">def</span>.<span class="ident">as_ref</span>().<span class="ident">take_types</span>() {
+                    <span class="kw">if</span> <span class="ident">ctx</span>.<span class="ident">use_item_syntax</span>.<span class="ident">is_some</span>() {
+                        <span class="macro">tested_by</span><span class="macro">!</span>(<span class="ident">dont_complete_primitive_in_use</span>);
+                        <span class="kw">continue</span>;
+                    }
+                }
                 <span class="kw">if</span> <span class="prelude-val">Some</span>(<span class="ident">module</span>) <span class="op">==</span> <span class="ident">ctx</span>.<span class="ident">module</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">import</span>) <span class="op">=</span> <span class="ident">res</span>.<span class="ident">import</span> {
                         <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Either</span>::<span class="ident">A</span>(<span class="ident">use_tree</span>) <span class="op">=</span> <span class="ident">module</span>.<span class="ident">import_source</span>(<span class="ident">ctx</span>.<span class="ident">db</span>, <span class="ident">import</span>) {
@@ -365,6 +391,20 @@
             <span class="ident">CompletionKind</span>::<span class="ident">Reference</span>,
         );
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">completions</span>.<span class="ident">len</span>(), <span class="number">2</span>);
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">dont_complete_primitive_in_use</span>() {
+        <span class="macro">covers</span><span class="macro">!</span>(<span class="ident">dont_complete_primitive_in_use</span>);
+        <span class="kw">let</span> <span class="ident">completions</span> <span class="op">=</span> <span class="ident">do_completion</span>(<span class="string">r&quot;use self::&lt;|&gt;;&quot;</span>, <span class="ident">CompletionKind</span>::<span class="ident">BuiltinType</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">completions</span>.<span class="ident">is_empty</span>());
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">completes_primitives</span>() {
+        <span class="kw">let</span> <span class="ident">completions</span> <span class="op">=</span>
+            <span class="ident">do_completion</span>(<span class="string">r&quot;fn main() { let _: &lt;|&gt; = 92; }&quot;</span>, <span class="ident">CompletionKind</span>::<span class="ident">BuiltinType</span>);
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">completions</span>.<span class="ident">len</span>(), <span class="number">17</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>

@@ -1436,6 +1436,7 @@
 <span id="1436">1436</span>
 <span id="1437">1437</span>
 <span id="1438">1438</span>
+<span id="1439">1439</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type inference, i.e. the process of walking through the code and determining</span>
 <span class="doccomment">//! the type of each expression and pattern.</span>
@@ -2088,7 +2089,8 @@
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Function</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Enum</span>(<span class="kw">_</span>)
             <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Const</span>(<span class="kw">_</span>)
-            <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Static</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (<span class="ident">Ty</span>::<span class="ident">Unknown</span>, <span class="prelude-val">None</span>),
+            <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">Static</span>(<span class="kw">_</span>)
+            <span class="op">|</span> <span class="ident">TypableDef</span>::<span class="ident">BuiltinType</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (<span class="ident">Ty</span>::<span class="ident">Unknown</span>, <span class="prelude-val">None</span>),
         }
     }
 
