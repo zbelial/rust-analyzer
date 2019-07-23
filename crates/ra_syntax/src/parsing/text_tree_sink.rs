@@ -46,6 +46,7 @@ impl<'a> TreeSink for TextTreeSink<'a> {
 
     fn start_node(&mut self, kind: SyntaxKind) {
         match mem::replace(&mut self.state, State::Normal) {
+            ///ZC new的时候state为PendingStart，所以一开始replace的结果就是PendingStart
             State::PendingStart => {
                 self.inner.start_node(kind);
                 // No need to attach trivias to previous node: there is no
@@ -139,6 +140,7 @@ impl<'a> TextTreeSink<'a> {
     }
 }
 
+///ZC 判断有哪些trivia是当前token的trivia（从\n\n开始的都是）。trivias是从当前token往前，倒序存放的trivia token。
 fn n_attached_trivias<'a>(
     kind: SyntaxKind,
     trivias: impl Iterator<Item = (SyntaxKind, &'a str)>,
