@@ -15,8 +15,8 @@ pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 pub const GRAMMAR: &str = "crates/ra_syntax/src/grammar.ron";
 const GRAMMAR_DIR: &str = "crates/ra_parser/src/grammar";
-const OK_INLINE_TESTS_DIR: &str = "crates/ra_syntax/tests/data/parser/inline/ok";
-const ERR_INLINE_TESTS_DIR: &str = "crates/ra_syntax/tests/data/parser/inline/err";
+const OK_INLINE_TESTS_DIR: &str = "crates/ra_syntax/test_data/parser/inline/ok";
+const ERR_INLINE_TESTS_DIR: &str = "crates/ra_syntax/test_data/parser/inline/err";
 
 pub const SYNTAX_KINDS: &str = "crates/ra_parser/src/syntax_kind/generated.rs.tera";
 pub const AST: &str = "crates/ra_syntax/src/ast/generated.rs.tera";
@@ -77,6 +77,29 @@ pub fn generate(mode: Mode) -> Result<()> {
 
 pub fn project_root() -> PathBuf {
     Path::new(&env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).unwrap().to_path_buf()
+}
+
+pub struct Cmd {
+    pub unix: &'static str,
+    pub windows: &'static str,
+    pub work_dir: &'static str,
+}
+
+impl Cmd {
+    pub fn run(self) -> Result<()> {
+        if cfg!(windows) {
+            run(self.windows, self.work_dir)
+        } else {
+            run(self.unix, self.work_dir)
+        }
+    }
+    pub fn run_with_output(self) -> Result<Output> {
+        if cfg!(windows) {
+            run_with_output(self.windows, self.work_dir)
+        } else {
+            run_with_output(self.unix, self.work_dir)
+        }
+    }
 }
 
 pub fn run(cmdline: &str, dir: &str) -> Result<()> {

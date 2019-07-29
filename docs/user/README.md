@@ -1,6 +1,6 @@
 The main interface to rust-analyzer is the
 [LSP](https://microsoft.github.io/language-server-protocol/) implementation. To
-install lsp server, use `cargo install-lsp`, which is a shorthand for `cargo
+install lsp server, use `cargo install-ra --server`, which is a shorthand for `cargo
 install --package ra_lsp_server`. The binary is named `ra_lsp_server`, you
 should be able to use it with any LSP-compatible editor. We use custom
 extensions to LSP, so special client-side support is required to take full
@@ -33,7 +33,7 @@ following commands:
 ```
 $ git clone https://github.com/rust-analyzer/rust-analyzer.git --depth 1
 $ cd rust-analyzer
-$ cargo install-code
+$ cargo install-ra
 ```
 
 The automatic installation is expected to *just work* for common cases, if it
@@ -86,7 +86,7 @@ Installation:
 [ra-emacs-lsp.el](https://github.com/rust-analyzer/rust-analyzer/blob/69ee5c9c5ef212f7911028c9ddf581559e6565c3/editors/emacs/ra-emacs-lsp.el)
 to load path and require it in `init.el`
 * run `lsp` in a rust buffer
-* (Optionally) bind commands like `rust-analyzer-join-lines` or `rust-analyzer-extend-selection` to keys
+* (Optionally) bind commands like `rust-analyzer-join-lines` or `rust-analyzer-extend-selection` to keys, and enable `rust-analyzer-inlay-hints-mode` to get inline type hints
 
 
 ## Vim and NeoVim

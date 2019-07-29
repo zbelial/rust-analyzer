@@ -25,7 +25,7 @@
         "lint": "tslint --project .",
         "test": "node node_modules/vscode/bin/test",
         "prettier": "prettier **/*.{json,ts}",
-        "travis": "npm run compile && npm run test && npm run lint && npm run prettier -- --list-different"
+        "travis": "npm run compile && npm run test && npm run lint && npm run prettier -- --check"
     },
     "prettier": {
         "tabWidth": 4,
@@ -44,7 +44,7 @@
         "tslint": "^5.16.0",
         "tslint-config-prettier": "^1.18.0",
         "typescript": "^3.4.4",
-        "vsce": "^1.64.0",
+        "vsce": "^1.66.0",
         "vscode": "^1.1.33"
     },
     "activationEvents": [
@@ -238,6 +238,11 @@
                     "type": "number",
                     "default": null,
                     "description": "Number of syntax trees rust-analyzer keeps in memory"
+                },
+                "rust-analyzer.displayInlayHints": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Display additional type information in the editor"
                 }
             }
         },
@@ -443,6 +448,15 @@
                     "dark": "#D4D4D4",
                     "light": "#000000",
                     "highContrast": "#FFFFFF"
+                }
+            },
+            {
+                "id": "ralsp.inlayHint",
+                "description": "Color for inlay hints",
+                "defaults": {
+                    "dark": "#A0A0A0F0",
+                    "light": "#747474",
+                    "highContrast": "#BEBEBE"
                 }
             }
         ]
