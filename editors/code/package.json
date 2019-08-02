@@ -25,7 +25,7 @@
         "lint": "tslint --project .",
         "test": "node node_modules/vscode/bin/test",
         "prettier": "prettier **/*.{json,ts}",
-        "travis": "npm run compile && npm run test && npm run lint && npm run prettier -- --check"
+        "travis": "npm run compile && npm run test && npm run lint && npm run prettier -- --write && git diff --exit-code"
     },
     "prettier": {
         "tabWidth": 4,
@@ -36,16 +36,16 @@
         "vscode-languageclient": "^5.3.0-next.4"
     },
     "devDependencies": {
-        "@types/mocha": "^5.2.6",
-        "@types/node": "^10.14.5",
+        "@types/mocha": "^5.2.7",
+        "@types/node": "^10.14.13",
         "@types/seedrandom": "^2.4.28",
-        "prettier": "^1.17.0",
+        "prettier": "^1.18.2",
         "shx": "^0.3.1",
-        "tslint": "^5.16.0",
+        "tslint": "^5.18.0",
         "tslint-config-prettier": "^1.18.0",
-        "typescript": "^3.4.4",
+        "typescript": "^3.5.3",
         "vsce": "^1.66.0",
-        "vscode": "^1.1.33"
+        "vscode": "^1.1.35"
     },
     "activationEvents": [
         "onLanguage:rust",

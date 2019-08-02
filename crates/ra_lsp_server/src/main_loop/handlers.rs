@@ -485,14 +485,13 @@ pub fn handle_hover(
     let res = Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: info.info.to_markup(),
+            value: crate::markdown::format_docs(&info.info.to_markup()),
         }),
         range: Some(range),
     };
     Ok(Some(res))
 }
 
-/// Test doc comment
 pub fn handle_prepare_rename(
     world: WorldSnapshot,
     params: req::TextDocumentPositionParams,
@@ -900,6 +899,9 @@ pub fn handle_inlay_hints(
                 ra_ide_api::InlayKind::ForExpressionBindingType => {
                     InlayKind::ForExpressionBindingType
                 }
+                ra_ide_api::InlayKind::IfExpressionType => InlayKind::IfExpressionType,
+                ra_ide_api::InlayKind::WhileLetExpressionType => InlayKind::WhileLetExpressionType,
+                ra_ide_api::InlayKind::MatchArmType => InlayKind::MatchArmType,
             },
         })
         .collect())
