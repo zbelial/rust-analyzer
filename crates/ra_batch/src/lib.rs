@@ -1,14 +1,12 @@
-mod vfs_filter;
-
 use std::{collections::HashSet, error::Error, path::Path};
 
 use rustc_hash::FxHashMap;
 
 use ra_db::{CrateGraph, FileId, SourceRootId};
 use ra_ide_api::{AnalysisChange, AnalysisHost};
-use ra_project_model::{ProjectRoot, ProjectWorkspace};
-use ra_vfs::{Vfs, VfsChange};
-use vfs_filter::IncludeRustFiles;
+use ra_project_model::{PackageRoot, ProjectWorkspace};
+use ra_vfs::{RootEntry, Vfs, VfsChange};
+use ra_vfs_glob::RustPackageFilterBuilder;
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -19,11 +17,23 @@ fn vfs_root_to_id(r: ra_vfs::VfsRoot) -> SourceRootId {
     SourceRootId(r.0)
 }
 
-pub fn load_cargo(root: &Path) -> Result<(AnalysisHost, FxHashMap<SourceRootId, ProjectRoot>)> {
+pub fn load_cargo(root: &Path) -> Result<(AnalysisHost, FxHashMap<SourceRootId, PackageRoot>)> {
     let root = std::env::current_dir()?.join(root);
     let ws = ProjectWorkspace::discover(root.as_ref())?;
     let project_roots = ws.to_roots();
-    let (mut vfs, roots) = Vfs::new(IncludeRustFiles::from_roots(project_roots.clone()).collect());
+    let (mut vfs, roots) = Vfs::new(
+        project_roots
+            .iter()
+            .map(|pkg_root| {
+                RootEntry::new(
+                    pkg_root.path().clone(),
+                    RustPackageFilterBuilder::default()
+                        .set_member(pkg_root.is_member())
+                        .into_vfs_filter(),
+                )
+            })
+            .collect(),
+    );
     let crate_graph = ws.to_crate_graph(&mut |path: &Path| {
         let vfs_file = vfs.load(path);
         log::debug!("vfs file {:?} -> {:?}", path, vfs_file);
@@ -48,7 +58,7 @@ pub fn load_cargo(root: &Path) -> Result<(AnalysisHost, FxHashMap<SourceRootId, 
 }
 
 pub fn load(
-    source_roots: &FxHashMap<SourceRootId, ProjectRoot>,
+    source_roots: &FxHashMap<SourceRootId, PackageRoot>,
     crate_graph: CrateGraph,
     vfs: &mut Vfs,
 ) -> AnalysisHost {

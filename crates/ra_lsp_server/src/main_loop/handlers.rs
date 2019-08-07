@@ -3,13 +3,13 @@ use std::{fmt::Write as _, io::Write as _};
 use gen_lsp_server::ErrorCode;
 use lsp_types::{
     CodeAction, CodeActionResponse, CodeLens, Command, CompletionItem, Diagnostic,
-    DiagnosticSeverity, DocumentFormattingParams, DocumentHighlight, DocumentSymbol, FoldingRange,
-    FoldingRangeKind, FoldingRangeParams, Hover, HoverContents, Location, MarkupContent,
-    MarkupKind, Position, PrepareRenameResponse, Range, RenameParams, SymbolInformation,
-    TextDocumentIdentifier, TextEdit, WorkspaceEdit,
+    DocumentFormattingParams, DocumentHighlight, DocumentSymbol, FoldingRange, FoldingRangeKind,
+    FoldingRangeParams, Hover, HoverContents, Location, MarkupContent, MarkupKind, Position,
+    PrepareRenameResponse, Range, RenameParams, SymbolInformation, TextDocumentIdentifier,
+    TextEdit, WorkspaceEdit,
 };
 use ra_ide_api::{
-    AssistId, Cancelable, FileId, FilePosition, FileRange, FoldKind, Query, RunnableKind, Severity,
+    AssistId, Cancelable, FileId, FilePosition, FileRange, FoldKind, Query, RunnableKind,
 };
 use ra_prof::profile;
 use ra_syntax::{AstNode, SyntaxKind, TextRange, TextUnit};
@@ -838,7 +838,7 @@ pub fn publish_diagnostics(
         .into_iter()
         .map(|d| Diagnostic {
             range: d.range.conv_with(&line_index),
-            severity: Some(to_diagnostic_severity(d.severity)),
+            severity: Some(d.severity.conv()),
             code: None,
             source: Some("rust-analyzer".to_string()),
             message: d.message,
@@ -871,15 +871,6 @@ fn highlight(world: &WorldSnapshot, file_id: FileId) -> Result<Vec<Decoration>> 
     Ok(res)
 }
 
-fn to_diagnostic_severity(severity: Severity) -> DiagnosticSeverity {
-    use ra_ide_api::Severity::*;
-
-    match severity {
-        Error => DiagnosticSeverity::Error,
-        WeakWarning => DiagnosticSeverity::Hint,
-    }
-}
-
 pub fn handle_inlay_hints(
     world: WorldSnapshot,
     params: InlayHintsParams,
@@ -894,14 +885,7 @@ pub fn handle_inlay_hints(
             label: api_type.label.to_string(),
             range: api_type.range.conv_with(&line_index),
             kind: match api_type.kind {
-                ra_ide_api::InlayKind::LetBindingType => InlayKind::LetBindingType,
-                ra_ide_api::InlayKind::ClosureParameterType => InlayKind::ClosureParameterType,
-                ra_ide_api::InlayKind::ForExpressionBindingType => {
-                    InlayKind::ForExpressionBindingType
-                }
-                ra_ide_api::InlayKind::IfExpressionType => InlayKind::IfExpressionType,
-                ra_ide_api::InlayKind::WhileLetExpressionType => InlayKind::WhileLetExpressionType,
-                ra_ide_api::InlayKind::MatchArmType => InlayKind::MatchArmType,
+                ra_ide_api::InlayKind::TypeHint => InlayKind::TypeHint,
             },
         })
         .collect())

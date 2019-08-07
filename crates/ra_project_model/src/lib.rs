@@ -9,13 +9,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use rustc_hash::FxHashMap;
-
 use ra_db::{CrateGraph, Edition, FileId};
-
+use rustc_hash::FxHashMap;
 use serde_json::from_reader;
-
-use relative_path::RelativePath;
 
 pub use crate::{
     cargo_workspace::{CargoWorkspace, Package, Target, TargetKind},
@@ -34,20 +30,20 @@ pub enum ProjectWorkspace {
     Json { project: JsonProject },
 }
 
-/// `ProjectRoot` describes a workspace root folder.
+/// `PackageRoot` describes a package root folder.
 /// Which may be an external dependency, or a member of
 /// the current workspace.
 #[derive(Clone)]
-pub struct ProjectRoot {
+pub struct PackageRoot {
     /// Path to the root folder
     path: PathBuf,
     /// Is a member of the current workspace
     is_member: bool,
 }
 
-impl ProjectRoot {
-    pub fn new(path: PathBuf, is_member: bool) -> ProjectRoot {
-        ProjectRoot { path, is_member }
+impl PackageRoot {
+    pub fn new(path: PathBuf, is_member: bool) -> PackageRoot {
+        PackageRoot { path, is_member }
     }
 
     pub fn path(&self) -> &PathBuf {
@@ -56,28 +52,6 @@ impl ProjectRoot {
 
     pub fn is_member(&self) -> bool {
         self.is_member
-    }
-
-    pub fn include_dir(&self, dir_path: &RelativePath) -> bool {
-        const COMMON_IGNORED_DIRS: &[&str] = &["node_modules", "target", ".git"];
-        const EXTERNAL_IGNORED_DIRS: &[&str] = &["examples", "tests", "benches"];
-
-        let is_ignored = if self.is_member {
-            dir_path.components().any(|c| COMMON_IGNORED_DIRS.contains(&c.as_str()))
-        } else {
-            dir_path.components().any(|c| {
-                let path = c.as_str();
-                COMMON_IGNORED_DIRS.contains(&path) || EXTERNAL_IGNORED_DIRS.contains(&path)
-            })
-        };
-
-        let hidden = dir_path.components().any(|c| c.as_str().starts_with('.'));
-
-        !is_ignored && !hidden
-    }
-
-    pub fn include_file(&self, file_path: &RelativePath) -> bool {
-        file_path.extension() == Some("rs")
     }
 }
 
@@ -99,38 +73,39 @@ impl ProjectWorkspace {
         }
     }
 
-    /// Returns the roots for the current ProjectWorkspace
+    /// Returns the roots for the current `ProjectWorkspace`
     /// The return type contains the path and whether or not
     /// the root is a member of the current workspace
-    pub fn to_roots(&self) -> Vec<ProjectRoot> {
+    pub fn to_roots(&self) -> Vec<PackageRoot> {
         match self {
             ProjectWorkspace::Json { project } => {
                 let mut roots = Vec::with_capacity(project.roots.len());
                 for root in &project.roots {
-                    roots.push(ProjectRoot::new(root.path.clone(), true));
+                    roots.push(PackageRoot::new(root.path.clone(), true));
                 }
                 roots
             }
             ProjectWorkspace::Cargo { cargo, sysroot } => {
-                let mut roots =
-                    Vec::with_capacity(cargo.packages().count() + sysroot.crates().count());
+                let mut roots = Vec::with_capacity(cargo.packages().len() + sysroot.crates().len());
                 for pkg in cargo.packages() {
                     let root = pkg.root(&cargo).to_path_buf();
                     let member = pkg.is_member(&cargo);
-                    roots.push(ProjectRoot::new(root, member));
+                    roots.push(PackageRoot::new(root, member));
                 }
                 for krate in sysroot.crates() {
-                    roots.push(ProjectRoot::new(krate.root_dir(&sysroot).to_path_buf(), false))
+                    roots.push(PackageRoot::new(krate.root_dir(&sysroot).to_path_buf(), false))
                 }
                 roots
             }
         }
     }
 
-    pub fn count(&self) -> usize {
+    pub fn n_packages(&self) -> usize {
         match self {
             ProjectWorkspace::Json { project } => project.crates.len(),
-            ProjectWorkspace::Cargo { cargo, .. } => cargo.packages().count(),
+            ProjectWorkspace::Cargo { cargo, sysroot } => {
+                cargo.packages().len() + sysroot.crates().len()
+            }
         }
     }
 
