@@ -61,7 +61,7 @@ impl<N> AstChildren<N> {
 impl<N: AstNode> Iterator for AstChildren<N> {
     type Item = N;
     fn next(&mut self) -> Option<N> {
-        self.inner.by_ref().find_map(N::cast)
+        self.inner.by_ref().find_map(N::cast) //N::cast确定了只有某些Node会返回
     }
 }
 

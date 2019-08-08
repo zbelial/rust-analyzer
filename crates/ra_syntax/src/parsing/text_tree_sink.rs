@@ -91,6 +91,7 @@ impl<'a> TreeSink for TextTreeSink<'a> {
 }
 
 impl<'a> TextTreeSink<'a> {
+    /// 记录文件内容、token（所有的）、当前位置、当前token、解析状态，以及内部语法树builder
     pub(super) fn new(text: &'a str, tokens: &'a [Token]) -> TextTreeSink<'a> {
         TextTreeSink {
             text,
