@@ -43,10 +43,10 @@ use crate::{
 };
 
 pub(crate) fn root(p: &mut Parser) {
-    let m = p.start(); //start返回的marker记录了此event在event stream（一个Vec）中的位置。
+    let m = p.start(); // ZC start返回的marker记录了此event在event stream（一个Vec）中的位置。
     p.eat(SHEBANG);
-    items::mod_contents(p, false); // 将token转换为flat stream of events of the form "start expression, consume number literal, finish expression". 见parser.rs.
-    m.complete(p, SOURCE_FILE); // start和complete之间的所有token/node都属于同一个node
+    items::mod_contents(p, false); // ZC 将token转换为flat stream of events of the form "start expression, consume number literal, finish expression". 见parser.rs.
+    m.complete(p, SOURCE_FILE); // ZC start和complete之间的所有token/node都属于同一个node
 }
 
 pub(crate) fn macro_items(p: &mut Parser) {

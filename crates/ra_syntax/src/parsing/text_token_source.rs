@@ -67,7 +67,7 @@ fn mk_token(pos: usize, start_offsets: &[TextUnit], tokens: &[Token]) -> PToken 
 
 impl<'t> TextTokenSource<'t> {
     /// Generate input from tokens(expect comment and whitespace).
-    /// 记录token，生成token（除comment和whitespace）的文件内偏移，文档内容，并记录当前token和其偏移位置。
+    // ZC 记录token，生成token（除comment和whitespace）的文件内偏移，文档内容，并记录当前token和其偏移位置。
     pub fn new(text: &'t str, raw_tokens: &'t [Token]) -> TextTokenSource<'t> {
         let mut tokens = Vec::new();
         let mut start_offsets = Vec::new();
