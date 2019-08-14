@@ -359,11 +359,14 @@ fn lhs(
             return Some((m.complete(p, RANGE_EXPR), BlockLike::NotBlock));
         }
         _ => {
+            // test expression_after_block
+            // fn foo() {
+            //    let mut p = F{x: 5};
+            //    {p}.x = 10;
+            // }
+            //
             let (lhs, blocklike) = atom::atom_expr(p, r)?;
-            return Some((
-                postfix_expr(p, lhs, !(r.prefer_stmt && blocklike.is_block())),
-                blocklike,
-            ));
+            return Some(postfix_expr(p, lhs, blocklike, !(r.prefer_stmt && blocklike.is_block())));
         }
     };
     expr_bp(p, r, 255, dollar_lvl);
@@ -376,8 +379,9 @@ fn postfix_expr(
     // Calls are disallowed if the type is a block and we prefer statements because the call cannot be disambiguated from a tuple
     // E.g. `while true {break}();` is parsed as
     // `while true {break}; ();`
+    mut block_like: BlockLike,
     mut allow_calls: bool,
-) -> CompletedMarker {
+) -> (CompletedMarker, BlockLike) {
     loop {
         lhs = match p.current() {
             // test stmt_postfix_expr_ambiguity
@@ -417,9 +421,10 @@ fn postfix_expr(
             T![as] => cast_expr(p, lhs),
             _ => break,
         };
-        allow_calls = true
+        allow_calls = true;
+        block_like = BlockLike::NotBlock;
     }
-    lhs
+    (lhs, block_like)
 }
 
 // test call_expr
@@ -484,10 +489,8 @@ fn field_expr(p: &mut Parser, lhs: CompletedMarker) -> CompletedMarker {
     assert!(p.at(T![.]));
     let m = lhs.precede(p);
     p.bump();
-    if p.at(IDENT) {
-        name_ref(p)
-    } else if p.at(INT_NUMBER) {
-        p.bump();
+    if p.at(IDENT) || p.at(INT_NUMBER) {
+        name_ref_or_index(p)
     } else if p.at(FLOAT_NUMBER) {
         // FIXME: How to recover and instead parse INT + T![.]?
         p.bump();
@@ -572,6 +575,7 @@ fn path_expr(p: &mut Parser, r: Restrictions) -> (CompletedMarker, BlockLike) {
 //     S {};
 //     S { x, y: 32, };
 //     S { x, y: 32, ..Default::default() };
+//     TupleStruct { 0: 1 };
 // }
 pub(crate) fn named_field_list(p: &mut Parser) {
     assert!(p.at(T!['{']));
@@ -583,10 +587,10 @@ pub(crate) fn named_field_list(p: &mut Parser) {
             // fn main() {
             //     S { #[cfg(test)] field: 1 }
             // }
-            IDENT | T![#] => {
+            IDENT | INT_NUMBER | T![#] => {
                 let m = p.start();
                 attributes::outer_attributes(p);
-                name_ref(p);
+                name_ref_or_index(p);
                 if p.eat(T![:]) {
                     expr(p);
                 }

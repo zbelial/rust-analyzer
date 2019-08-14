@@ -9,7 +9,7 @@ use lsp_types::{
     TextEdit, WorkspaceEdit,
 };
 use ra_ide_api::{
-    AssistId, Cancelable, FileId, FilePosition, FileRange, FoldKind, Query, RunnableKind,
+    AssistId, FileId, FilePosition, FileRange, FoldKind, Query, Runnable, RunnableKind,
 };
 use ra_prof::profile;
 use ra_syntax::{AstNode, SyntaxKind, TextRange, TextUnit};
@@ -43,27 +43,6 @@ pub fn handle_syntax_tree(world: WorldSnapshot, params: req::SyntaxTreeParams) -
     let text_range = params.range.map(|p| p.conv_with(&line_index));
     let res = world.analysis().syntax_tree(id, text_range)?;
     Ok(res)
-}
-
-// FIXME: drop this API
-pub fn handle_extend_selection(
-    world: WorldSnapshot,
-    params: req::ExtendSelectionParams,
-) -> Result<req::ExtendSelectionResult> {
-    log::error!(
-        "extend selection is deprecated and will be removed soon,
-         use the new selection range API in LSP",
-    );
-    let file_id = params.text_document.try_conv_with(&world)?;
-    let line_index = world.analysis().file_line_index(file_id)?;
-    let selections = params
-        .selections
-        .into_iter()
-        .map_conv_with(&line_index)
-        .map(|range| FileRange { file_id, range })
-        .map(|frange| world.analysis().extend_selection(frange).map(|it| it.conv_with(&line_index)))
-        .collect::<Cancelable<Vec<_>>>()?;
-    Ok(req::ExtendSelectionResult { selections })
 }
 
 pub fn handle_selection_range(
@@ -325,27 +304,7 @@ pub fn handle_runnables(
                 continue;
             }
         }
-
-        let args = runnable_args(&world, file_id, &runnable.kind)?;
-
-        let r = req::Runnable {
-            range: runnable.range.conv_with(&line_index),
-            label: match &runnable.kind {
-                RunnableKind::Test { name } => format!("test {}", name),
-                RunnableKind::TestMod { path } => format!("test-mod {}", path),
-                RunnableKind::Bench { name } => format!("bench {}", name),
-                RunnableKind::Bin => "run binary".to_string(),
-            },
-            bin: "cargo".to_string(),
-            args,
-            env: {
-                let mut m = FxHashMap::default();
-                m.insert("RUST_BACKTRACE".to_string(), "short".to_string());
-                m
-            },
-            cwd: workspace_root.map(|root| root.to_string_lossy().to_string()),
-        };
-        res.push(r);
+        res.push(to_lsp_runnable(&world, file_id, runnable)?);
     }
     let mut check_args = vec!["check".to_string()];
     let label;
@@ -693,42 +652,27 @@ pub fn handle_code_lens(
     let line_index = world.analysis().file_line_index(file_id)?;
 
     let mut lenses: Vec<CodeLens> = Default::default();
-    let workspace_root = world.workspace_root_for(file_id);
 
     // Gather runnables
     for runnable in world.analysis().runnables(file_id)? {
         let title = match &runnable.kind {
-            RunnableKind::Test { .. } | RunnableKind::TestMod { .. } => Some("▶️Run Test"),
-            RunnableKind::Bench { .. } => Some("Run Bench"),
-            RunnableKind::Bin => Some("️Run"),
+            RunnableKind::Test { .. } | RunnableKind::TestMod { .. } => "▶️Run Test",
+            RunnableKind::Bench { .. } => "Run Bench",
+            RunnableKind::Bin => "Run",
+        }
+        .to_string();
+        let r = to_lsp_runnable(&world, file_id, runnable)?;
+        let lens = CodeLens {
+            range: r.range,
+            command: Some(Command {
+                title,
+                command: "rust-analyzer.runSingle".into(),
+                arguments: Some(vec![to_value(r).unwrap()]),
+            }),
+            data: None,
         };
 
-        if let Some(title) = title {
-            let args = runnable_args(&world, file_id, &runnable.kind)?;
-            let range = runnable.range.conv_with(&line_index);
-
-            // This represents the actual command that will be run.
-            let r: req::Runnable = req::Runnable {
-                range,
-                label: Default::default(),
-                bin: "cargo".into(),
-                args,
-                env: Default::default(),
-                cwd: workspace_root.map(|root| root.to_string_lossy().to_string()),
-            };
-
-            let lens = CodeLens {
-                range,
-                command: Some(Command {
-                    title: title.into(),
-                    command: "rust-analyzer.runSingle".into(),
-                    arguments: Some(vec![to_value(r).unwrap()]),
-                }),
-                data: None,
-            };
-
-            lenses.push(lens);
-        }
+        lenses.push(lens);
     }
 
     // Handle impls
@@ -856,6 +800,32 @@ pub fn publish_decorations(
     Ok(req::PublishDecorationsParams { uri, decorations: highlight(&world, file_id)? })
 }
 
+fn to_lsp_runnable(
+    world: &WorldSnapshot,
+    file_id: FileId,
+    runnable: Runnable,
+) -> Result<req::Runnable> {
+    let args = runnable_args(world, file_id, &runnable.kind)?;
+    let line_index = world.analysis().file_line_index(file_id)?;
+    let label = match &runnable.kind {
+        RunnableKind::Test { name } => format!("test {}", name),
+        RunnableKind::TestMod { path } => format!("test-mod {}", path),
+        RunnableKind::Bench { name } => format!("bench {}", name),
+        RunnableKind::Bin => "run binary".to_string(),
+    };
+    Ok(req::Runnable {
+        range: runnable.range.conv_with(&line_index),
+        label,
+        bin: "cargo".to_string(),
+        args,
+        env: {
+            let mut m = FxHashMap::default();
+            m.insert("RUST_BACKTRACE".to_string(), "short".to_string());
+            m
+        },
+        cwd: world.workspace_root_for(file_id).map(|root| root.to_string_lossy().to_string()),
+    })
+}
 fn highlight(world: &WorldSnapshot, file_id: FileId) -> Result<Vec<Decoration>> {
     let line_index = world.analysis().file_line_index(file_id)?;
     let res = world

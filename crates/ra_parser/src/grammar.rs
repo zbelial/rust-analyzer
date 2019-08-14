@@ -287,6 +287,16 @@ fn name_ref(p: &mut Parser) {
     }
 }
 
+fn name_ref_or_index(p: &mut Parser) {
+    if p.at(IDENT) || p.at(INT_NUMBER) {
+        let m = p.start();
+        p.bump();
+        m.complete(p, NAME_REF);
+    } else {
+        p.err_and_bump("expected identifier");
+    }
+}
+
 fn error_block(p: &mut Parser, message: &str) {
     assert!(p.at(T!['{']));
     let m = p.start();
