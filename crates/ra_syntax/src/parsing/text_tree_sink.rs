@@ -44,6 +44,7 @@ impl<'a> TreeSink for TextTreeSink<'a> {
         self.do_token(kind, len, n_tokens);
     }
 
+    // ZC 开始一个node，同时会附加trivia到node上
     fn start_node(&mut self, kind: SyntaxKind) {
         match mem::replace(&mut self.state, State::Normal) {
             //ZC new的时候state为PendingStart，所以一开始replace的结果就是PendingStart
