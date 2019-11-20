@@ -1,8 +1,11 @@
+//! FIXME: write short doc here
+
+use hir::Source;
 use itertools::Itertools;
 use ra_db::SourceDatabase;
 use ra_syntax::{
     ast::{self, AstNode, AttrsOwner, ModuleItemOwner, NameOwner},
-    SyntaxNode, TextRange,
+    match_ast, SyntaxNode, TextRange,
 };
 
 use crate::{db::RootDatabase, FileId};
@@ -27,12 +30,12 @@ pub(crate) fn runnables(db: &RootDatabase, file_id: FileId) -> Vec<Runnable> {
 }
 
 fn runnable(db: &RootDatabase, file_id: FileId, item: SyntaxNode) -> Option<Runnable> {
-    if let Some(fn_def) = ast::FnDef::cast(item.clone()) {
-        runnable_fn(fn_def)
-    } else if let Some(m) = ast::Module::cast(item) {
-        runnable_mod(db, file_id, m)
-    } else {
-        None
+    match_ast! {
+        match item {
+            ast::FnDef(it) => { runnable_fn(it) },
+            ast::Module(it) => { runnable_mod(db, file_id, it) },
+            _ => { None },
+        }
     }
 }
 
@@ -54,8 +57,8 @@ fn runnable_mod(db: &RootDatabase, file_id: FileId, module: ast::Module) -> Opti
     let has_test_function = module
         .item_list()?
         .items()
-        .filter_map(|it| match it.kind() {
-            ast::ModuleItemKind::FnDef(it) => Some(it),
+        .filter_map(|it| match it {
+            ast::ModuleItem::FnDef(it) => Some(it),
             _ => None,
         })
         .any(|f| f.has_atom_attr("test"));
@@ -63,7 +66,8 @@ fn runnable_mod(db: &RootDatabase, file_id: FileId, module: ast::Module) -> Opti
         return None;
     }
     let range = module.syntax().text_range();
-    let module = hir::source_binder::module_from_child_node(db, file_id, module.syntax())?;
+    let src = hir::ModuleSource::from_child_node(db, Source::new(file_id.into(), &module.syntax()));
+    let module = hir::Module::from_definition(db, Source::new(file_id.into(), src))?;
 
     let path = module.path_to_root(db).into_iter().rev().filter_map(|it| it.name(db)).join("::");
     Some(Runnable { range, kind: RunnableKind::TestMod { path } })
@@ -71,7 +75,7 @@ fn runnable_mod(db: &RootDatabase, file_id: FileId, module: ast::Module) -> Opti
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_debug_snapshot_matches;
+    use insta::assert_debug_snapshot;
 
     use crate::mock_analysis::analysis_and_position;
 
@@ -92,25 +96,27 @@ mod tests {
         "#,
         );
         let runnables = analysis.runnables(pos.file_id).unwrap();
-        assert_debug_snapshot_matches!(&runnables,
-        @r#"[
-    Runnable {
-        range: [1; 21),
-        kind: Bin,
-    },
-    Runnable {
-        range: [22; 46),
-        kind: Test {
-            name: "test_foo",
-        },
-    },
-    Runnable {
-        range: [47; 81),
-        kind: Test {
-            name: "test_foo",
-        },
-    },
-]"#
+        assert_debug_snapshot!(&runnables,
+        @r###"
+        [
+            Runnable {
+                range: [1; 21),
+                kind: Bin,
+            },
+            Runnable {
+                range: [22; 46),
+                kind: Test {
+                    name: "test_foo",
+                },
+            },
+            Runnable {
+                range: [47; 81),
+                kind: Test {
+                    name: "test_foo",
+                },
+            },
+        ]
+        "###
                 );
     }
 
@@ -127,21 +133,23 @@ mod tests {
         "#,
         );
         let runnables = analysis.runnables(pos.file_id).unwrap();
-        assert_debug_snapshot_matches!(&runnables,
-        @r#"[
-    Runnable {
-        range: [1; 59),
-        kind: TestMod {
-            path: "test_mod",
-        },
-    },
-    Runnable {
-        range: [28; 57),
-        kind: Test {
-            name: "test_foo1",
-        },
-    },
-]"#
+        assert_debug_snapshot!(&runnables,
+        @r###"
+        [
+            Runnable {
+                range: [1; 59),
+                kind: TestMod {
+                    path: "test_mod",
+                },
+            },
+            Runnable {
+                range: [28; 57),
+                kind: Test {
+                    name: "test_foo1",
+                },
+            },
+        ]
+        "###
                 );
     }
 
@@ -160,21 +168,23 @@ mod tests {
         "#,
         );
         let runnables = analysis.runnables(pos.file_id).unwrap();
-        assert_debug_snapshot_matches!(&runnables,
-        @r#"[
-    Runnable {
-        range: [23; 85),
-        kind: TestMod {
-            path: "foo::test_mod",
-        },
-    },
-    Runnable {
-        range: [46; 79),
-        kind: Test {
-            name: "test_foo1",
-        },
-    },
-]"#
+        assert_debug_snapshot!(&runnables,
+        @r###"
+        [
+            Runnable {
+                range: [23; 85),
+                kind: TestMod {
+                    path: "foo::test_mod",
+                },
+            },
+            Runnable {
+                range: [46; 79),
+                kind: Test {
+                    name: "test_foo1",
+                },
+            },
+        ]
+        "###
                 );
     }
 
@@ -195,21 +205,23 @@ mod tests {
         "#,
         );
         let runnables = analysis.runnables(pos.file_id).unwrap();
-        assert_debug_snapshot_matches!(&runnables,
-        @r#"[
-    Runnable {
-        range: [41; 115),
-        kind: TestMod {
-            path: "foo::bar::test_mod",
-        },
-    },
-    Runnable {
-        range: [68; 105),
-        kind: Test {
-            name: "test_foo1",
-        },
-    },
-]"#
+        assert_debug_snapshot!(&runnables,
+        @r###"
+        [
+            Runnable {
+                range: [41; 115),
+                kind: TestMod {
+                    path: "foo::bar::test_mod",
+                },
+            },
+            Runnable {
+                range: [68; 105),
+                kind: Test {
+                    name: "test_foo1",
+                },
+            },
+        ]
+        "###
                 );
     }
 
@@ -227,5 +239,4 @@ mod tests {
         let runnables = analysis.runnables(pos.file_id).unwrap();
         assert!(runnables.is_empty())
     }
-
 }

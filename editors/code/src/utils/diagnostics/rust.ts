@@ -64,7 +64,7 @@ function mapLevelToSeverity(s: string): vscode.DiagnosticSeverity {
  * Converts a Rust span to a VsCode location
  */
 function mapSpanToLocation(span: RustDiagnosticSpan): vscode.Location {
-    const fileName = path.join(vscode.workspace.rootPath!, span.file_name);
+    const fileName = path.join(vscode.workspace.rootPath || '', span.file_name);
     const fileUri = vscode.Uri.file(fileName);
 
     const range = new vscode.Range(
@@ -109,6 +109,17 @@ function isUnusedOrUnnecessary(rd: RustDiagnostic): boolean {
         'unused_macros',
         'unused_variables'
     ].includes(rd.code.code);
+}
+
+/**
+ * Determines if diagnostic is related to deprecated code
+ */
+function isDeprecated(rd: RustDiagnostic): boolean {
+    if (!rd.code) {
+        return false;
+    }
+
+    return ['deprecated'].includes(rd.code.code);
 }
 
 /**
@@ -200,6 +211,7 @@ export function mapRustDiagnosticToVsCode(
     vd.source = source;
     vd.code = code;
     vd.relatedInformation = [];
+    vd.tags = [];
 
     for (const secondarySpan of secondarySpans) {
         const related = mapSecondarySpanToRelated(secondarySpan);
@@ -234,7 +246,11 @@ export function mapRustDiagnosticToVsCode(
     }
 
     if (isUnusedOrUnnecessary(rd)) {
-        vd.tags = [vscode.DiagnosticTag.Unnecessary];
+        vd.tags.push(vscode.DiagnosticTag.Unnecessary);
+    }
+
+    if (isDeprecated(rd)) {
+        vd.tags.push(vscode.DiagnosticTag.Deprecated);
     }
 
     return {

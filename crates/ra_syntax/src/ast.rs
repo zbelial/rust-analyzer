@@ -5,6 +5,8 @@ mod traits;
 mod tokens;
 mod extensions;
 mod expr_extensions;
+pub mod edit;
+pub mod make;
 
 use std::marker::PhantomData;
 
@@ -14,8 +16,8 @@ use crate::{
 };
 
 pub use self::{
-    expr_extensions::{ArrayExprKind, BinOp, ElseBranch, LiteralKind, PrefixOp},
-    extensions::{FieldKind, PathSegmentKind, SelfParamKind, StructKind},
+    expr_extensions::{ArrayExprKind, BinOp, ElseBranch, LiteralKind, PrefixOp, RangeOp},
+    extensions::{FieldKind, PathSegmentKind, SelfParamKind, StructKind, TypeBoundKind},
     generated::*,
     tokens::*,
     traits::*,
@@ -25,13 +27,21 @@ pub use self::{
 /// conversion itself has zero runtime cost: ast and syntax nodes have exactly
 /// the same representation: a pointer to the tree root and a pointer to the
 /// node itself.
-pub trait AstNode: Clone {
-    fn can_cast(kind: SyntaxKind) -> bool;
+pub trait AstNode {
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized;
 
     fn cast(syntax: SyntaxNode) -> Option<Self>
     where
         Self: Sized;
+
     fn syntax(&self) -> &SyntaxNode;
+}
+
+#[test]
+fn assert_ast_is_object_safe() {
+    fn _f(_: &dyn AstNode, _: &dyn NameOwner) {}
 }
 
 /// Like `AstNode`, but wraps tokens rather than interior nodes.
@@ -103,6 +113,20 @@ fn test_doc_comment_of_items() {
 }
 
 #[test]
+fn test_doc_comment_of_statics() {
+    let file = SourceFile::parse(
+        r#"
+        /// Number of levels
+        static LEVELS: i32 = 0;
+        "#,
+    )
+    .ok()
+    .unwrap();
+    let st = file.syntax().descendants().find_map(StaticDef::cast).unwrap();
+    assert_eq!("Number of levels", st.doc_comment_text().unwrap());
+}
+
+#[test]
 fn test_doc_comment_preserves_indents() {
     let file = SourceFile::parse(
         r#"
@@ -163,7 +187,7 @@ fn test_doc_comment_single_line_block_strips_suffix_whitespace() {
     .ok()
     .unwrap();
     let module = file.syntax().descendants().find_map(Module::cast).unwrap();
-    assert_eq!("this is mod foo", module.doc_comment_text().unwrap());
+    assert_eq!("this is mod foo ", module.doc_comment_text().unwrap());
 }
 
 #[test]
@@ -181,7 +205,27 @@ fn test_doc_comment_multi_line_block_strips_suffix() {
     .ok()
     .unwrap();
     let module = file.syntax().descendants().find_map(Module::cast).unwrap();
-    assert_eq!("        this\n        is\n        mod foo", module.doc_comment_text().unwrap());
+    assert_eq!(
+        "        this\n        is\n        mod foo\n        ",
+        module.doc_comment_text().unwrap()
+    );
+}
+
+#[test]
+fn test_comments_preserve_trailing_whitespace() {
+    let file = SourceFile::parse(
+        r#"
+/// Representation of a Realm.   
+/// In the specification these are called Realm Records.
+struct Realm {}"#,
+    )
+    .ok()
+    .unwrap();
+    let def = file.syntax().descendants().find_map(StructDef::cast).unwrap();
+    assert_eq!(
+        "Representation of a Realm.   \nIn the specification these are called Realm Records.",
+        def.doc_comment_text().unwrap()
+    );
 }
 
 #[test]

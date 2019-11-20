@@ -7,7 +7,7 @@ mod structure;
 mod short_label;
 
 use ra_syntax::{
-    ast::{self, AstNode, TypeParamsOwner},
+    ast::{self, AstNode, AttrsOwner, NameOwner, TypeParamsOwner},
     SyntaxKind::{ATTR, COMMENT},
 };
 
@@ -15,7 +15,7 @@ pub use function_signature::FunctionSignature;
 pub use navigation_target::NavigationTarget;
 pub use structure::{file_structure, StructureNode};
 
-pub(crate) use navigation_target::{description_from_symbol, docs_from_symbol};
+pub(crate) use navigation_target::{description_from_symbol, docs_from_symbol, ToNav};
 pub(crate) use short_label::ShortLabel;
 
 pub(crate) fn function_label(node: &ast::FnDef) -> String {
@@ -59,6 +59,12 @@ pub(crate) fn where_predicates<N: TypeParamsOwner>(node: &N) -> Vec<String> {
         res.extend(clause.predicates().map(|p| p.syntax().text().to_string()));
     }
     res
+}
+
+pub(crate) fn macro_label(node: &ast::MacroCall) -> String {
+    let name = node.name().map(|name| name.syntax().text().to_string()).unwrap_or_default();
+    let vis = if node.has_atom_attr("macro_export") { "#[macro_export]\n" } else { "" };
+    format!("{}macro_rules! {}", vis, name)
 }
 
 pub(crate) fn rust_code_markup<CODE: AsRef<str>>(val: CODE) -> String {

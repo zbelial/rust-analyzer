@@ -1,15 +1,16 @@
-use ra_syntax::ast;
+//! FIXME: write short doc here
+
+use ra_syntax::ast::{self, AstNode};
 
 use crate::{
-    ids::AstItemDef, AstDatabase, Const, DefDatabase, Enum, EnumVariant, FieldSource, Function,
-    HirFileId, MacroDef, Module, ModuleSource, Static, Struct, StructField, Trait, TypeAlias,
-    Union,
+    adt::VariantDef,
+    db::{AstDatabase, DefDatabase, HirDatabase},
+    ids::AstItemDef,
+    Const, Either, Enum, EnumVariant, FieldSource, Function, HasBody, HirFileId, MacroDef, Module,
+    ModuleSource, Static, Struct, StructField, Trait, TypeAlias, Union,
 };
 
-pub struct Source<T> {
-    pub file_id: HirFileId,
-    pub ast: T,
-}
+pub use hir_expand::Source;
 
 pub trait HasSource {
     type Ast;
@@ -21,9 +22,9 @@ pub trait HasSource {
 impl Module {
     /// Returns a node which defines this module. That is, a file or a `mod foo {}` with items.
     pub fn definition_source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<ModuleSource> {
-        let def_map = db.crate_def_map(self.krate);
-        let decl_id = def_map[self.module_id].declaration;
-        let file_id = def_map[self.module_id].definition;
+        let def_map = db.crate_def_map(self.id.krate);
+        let decl_id = def_map[self.id.module_id].declaration;
+        let file_id = def_map[self.id.module_id].definition;
         let ast = ModuleSource::new(db, file_id, decl_id);
         let file_id = file_id.map(HirFileId::from).unwrap_or_else(|| decl_id.unwrap().file_id());
         Source { file_id, ast }
@@ -35,8 +36,8 @@ impl Module {
         self,
         db: &(impl DefDatabase + AstDatabase),
     ) -> Option<Source<ast::Module>> {
-        let def_map = db.crate_def_map(self.krate);
-        let decl = def_map[self.module_id].declaration?;
+        let def_map = db.crate_def_map(self.id.krate);
+        let decl = def_map[self.id.module_id].declaration?;
         let ast = decl.to_node(db);
         Some(Source { file_id: decl.file_id(), ast })
     }
@@ -45,19 +46,45 @@ impl Module {
 impl HasSource for StructField {
     type Ast = FieldSource;
     fn source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<FieldSource> {
-        self.source_impl(db)
+        let var_data = self.parent.variant_data(db);
+        let fields = var_data.fields().unwrap();
+        let ss;
+        let es;
+        let (file_id, struct_kind) = match self.parent {
+            VariantDef::Struct(s) => {
+                ss = s.source(db);
+                (ss.file_id, ss.ast.kind())
+            }
+            VariantDef::EnumVariant(e) => {
+                es = e.source(db);
+                (es.file_id, es.ast.kind())
+            }
+        };
+
+        let field_sources = match struct_kind {
+            ast::StructKind::Tuple(fl) => fl.fields().map(|it| FieldSource::Pos(it)).collect(),
+            ast::StructKind::Named(fl) => fl.fields().map(|it| FieldSource::Named(it)).collect(),
+            ast::StructKind::Unit => Vec::new(),
+        };
+        let ast = field_sources
+            .into_iter()
+            .zip(fields.iter())
+            .find(|(_syntax, (id, _))| *id == self.id)
+            .unwrap()
+            .0;
+        Source { file_id, ast }
     }
 }
 impl HasSource for Struct {
     type Ast = ast::StructDef;
     fn source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<ast::StructDef> {
-        self.id.source(db)
+        self.id.0.source(db)
     }
 }
 impl HasSource for Union {
     type Ast = ast::StructDef;
     fn source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<ast::StructDef> {
-        self.id.source(db)
+        self.id.0.source(db)
     }
 }
 impl HasSource for Enum {
@@ -69,7 +96,18 @@ impl HasSource for Enum {
 impl HasSource for EnumVariant {
     type Ast = ast::EnumVariant;
     fn source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<ast::EnumVariant> {
-        self.source_impl(db)
+        let enum_data = db.enum_data(self.parent.id);
+        let src = self.parent.id.source(db);
+        let ast = src
+            .ast
+            .variant_list()
+            .into_iter()
+            .flat_map(|it| it.variants())
+            .zip(enum_data.variants.iter())
+            .find(|(_syntax, (id, _))| *id == self.id)
+            .unwrap()
+            .0;
+        Source { file_id: src.file_id, ast }
     }
 }
 impl HasSource for Function {
@@ -105,6 +143,30 @@ impl HasSource for TypeAlias {
 impl HasSource for MacroDef {
     type Ast = ast::MacroCall;
     fn source(self, db: &(impl DefDatabase + AstDatabase)) -> Source<ast::MacroCall> {
-        Source { file_id: self.id.0.file_id(), ast: self.id.0.to_node(db) }
+        Source { file_id: self.id.ast_id.file_id(), ast: self.id.ast_id.to_node(db) }
     }
+}
+
+pub trait HasBodySource: HasBody + HasSource
+where
+    Self::Ast: AstNode,
+{
+    fn expr_source(
+        self,
+        db: &impl HirDatabase,
+        expr_id: crate::expr::ExprId,
+    ) -> Option<Source<Either<ast::Expr, ast::RecordField>>> {
+        let source_map = self.body_source_map(db);
+        let source_ptr = source_map.expr_syntax(expr_id)?;
+        let root = source_ptr.file_syntax(db);
+        let source = source_ptr.map(|ast| ast.map(|it| it.to_node(&root), |it| it.to_node(&root)));
+        Some(source)
+    }
+}
+
+impl<T> HasBodySource for T
+where
+    T: HasBody + HasSource,
+    T::Ast: AstNode,
+{
 }

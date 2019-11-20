@@ -1,4 +1,5 @@
-use hir::source_binder;
+//! FIXME: write short doc here
+
 use ra_syntax::{
     algo::{find_covering_element, find_node_at_offset},
     ast, AstNode, Parse, SourceFile,
@@ -20,8 +21,8 @@ pub(crate) struct CompletionContext<'a> {
     pub(super) module: Option<hir::Module>,
     pub(super) function_syntax: Option<ast::FnDef>,
     pub(super) use_item_syntax: Option<ast::UseItem>,
-    pub(super) struct_lit_syntax: Option<ast::StructLit>,
-    pub(super) struct_lit_pat: Option<ast::StructPat>,
+    pub(super) record_lit_syntax: Option<ast::RecordLit>,
+    pub(super) record_lit_pat: Option<ast::RecordPat>,
     pub(super) is_param: bool,
     /// If a name-binding or reference to a const in a pattern.
     /// Irrefutable patterns (like let) are excluded.
@@ -37,8 +38,11 @@ pub(crate) struct CompletionContext<'a> {
     pub(super) is_new_item: bool,
     /// The receiver if this is a field or method access, i.e. writing something.<|>
     pub(super) dot_receiver: Option<ast::Expr>,
+    pub(super) dot_receiver_is_ambiguous_float_literal: bool,
     /// If this is a call (method or function) in particular, i.e. the () are already there.
     pub(super) is_call: bool,
+    pub(super) is_path_type: bool,
+    pub(super) has_type_args: bool,
 }
 
 impl<'a> CompletionContext<'a> {
@@ -47,11 +51,18 @@ impl<'a> CompletionContext<'a> {
         original_parse: &'a Parse<ast::SourceFile>,
         position: FilePosition,
     ) -> Option<CompletionContext<'a>> {
-        let module = source_binder::module_from_position(db, position);
+        let src = hir::ModuleSource::from_position(db, position);
+        let module = hir::Module::from_definition(
+            db,
+            hir::Source { file_id: position.file_id.into(), ast: src },
+        );
         let token =
             original_parse.tree().syntax().token_at_offset(position.offset).left_biased()?;
-        let analyzer =
-            hir::SourceAnalyzer::new(db, position.file_id, &token.parent(), Some(position.offset));
+        let analyzer = hir::SourceAnalyzer::new(
+            db,
+            hir::Source::new(position.file_id.into(), &token.parent()),
+            Some(position.offset),
+        );
         let mut ctx = CompletionContext {
             db,
             analyzer,
@@ -60,8 +71,8 @@ impl<'a> CompletionContext<'a> {
             module,
             function_syntax: None,
             use_item_syntax: None,
-            struct_lit_syntax: None,
-            struct_lit_pat: None,
+            record_lit_syntax: None,
+            record_lit_pat: None,
             is_param: false,
             is_pat_binding: false,
             is_trivial_path: false,
@@ -71,6 +82,9 @@ impl<'a> CompletionContext<'a> {
             is_new_item: false,
             dot_receiver: None,
             is_call: false,
+            is_path_type: false,
+            has_type_args: false,
+            dot_receiver_is_ambiguous_float_literal: false,
         };
         ctx.fill(&original_parse, position.offset);
         Some(ctx)
@@ -91,7 +105,7 @@ impl<'a> CompletionContext<'a> {
         // actual completion.
         let file = {
             let edit = AtomTextEdit::insert(offset, "intellijRulezz".to_string());
-            original_parse.reparse(&edit).tree().to_owned()
+            original_parse.reparse(&edit).tree()
         };
 
         // First, let's try to complete a reference to some declaration.
@@ -120,8 +134,8 @@ impl<'a> CompletionContext<'a> {
                 self.is_param = true;
                 return;
             }
-            if name.syntax().ancestors().find_map(ast::FieldPatList::cast).is_some() {
-                self.struct_lit_pat =
+            if name.syntax().ancestors().find_map(ast::RecordFieldPatList::cast).is_some() {
+                self.record_lit_pat =
                     find_node_at_offset(original_parse.tree().syntax(), self.offset);
             }
         }
@@ -129,8 +143,8 @@ impl<'a> CompletionContext<'a> {
 
     fn classify_name_ref(&mut self, original_file: SourceFile, name_ref: ast::NameRef) {
         let name_range = name_ref.syntax().text_range();
-        if name_ref.syntax().parent().and_then(ast::NamedField::cast).is_some() {
-            self.struct_lit_syntax = find_node_at_offset(original_file.syntax(), self.offset);
+        if name_ref.syntax().parent().and_then(ast::RecordField::cast).is_some() {
+            self.record_lit_syntax = find_node_at_offset(original_file.syntax(), self.offset);
         }
 
         let top_node = name_ref
@@ -170,6 +184,9 @@ impl<'a> CompletionContext<'a> {
                 .and_then(ast::PathExpr::cast)
                 .and_then(|it| it.syntax().parent().and_then(ast::CallExpr::cast))
                 .is_some();
+
+            self.is_path_type = path.syntax().parent().and_then(ast::PathType::cast).is_some();
+            self.has_type_args = segment.type_arg_list().is_some();
 
             if let Some(mut path) = hir::Path::from_ast(path.clone()) {
                 if !path.is_ident() {
@@ -223,6 +240,16 @@ impl<'a> CompletionContext<'a> {
                 .expr()
                 .map(|e| e.syntax().text_range())
                 .and_then(|r| find_node_with_range(original_file.syntax(), r));
+            self.dot_receiver_is_ambiguous_float_literal = if let Some(ast::Expr::Literal(l)) =
+                &self.dot_receiver
+            {
+                match l.kind() {
+                    ast::LiteralKind::FloatNumber { suffix: _ } => l.token().text().ends_with('.'),
+                    _ => false,
+                }
+            } else {
+                false
+            }
         }
         if let Some(method_call_expr) = ast::MethodCallExpr::cast(parent) {
             // As above

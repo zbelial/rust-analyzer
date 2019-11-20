@@ -1,7 +1,6 @@
-use ra_syntax::{
-    algo::visit::{visitor_ctx, VisitorCtx},
-    ast, AstNode,
-};
+//! FIXME: write short doc here
+
+use ra_syntax::{ast, match_ast, AstNode};
 use rustc_hash::FxHashMap;
 
 use crate::completion::{CompletionContext, CompletionItem, CompletionKind, Completions};
@@ -17,10 +16,13 @@ pub(super) fn complete_fn_param(acc: &mut Completions, ctx: &CompletionContext) 
 
     let mut params = FxHashMap::default();
     for node in ctx.token.parent().ancestors() {
-        let _ = visitor_ctx(&mut params)
-            .visit::<ast::SourceFile, _>(process)
-            .visit::<ast::ItemList, _>(process)
-            .accept(&node);
+        match_ast! {
+            match node {
+                ast::SourceFile(it) => { process(it, &mut params) },
+                ast::ItemList(it) => { process(it, &mut params) },
+                _ => (),
+            }
+        }
     }
     params
         .into_iter()
@@ -51,7 +53,7 @@ pub(super) fn complete_fn_param(acc: &mut Completions, ctx: &CompletionContext) 
 #[cfg(test)]
 mod tests {
     use crate::completion::{do_completion, CompletionItem, CompletionKind};
-    use insta::assert_debug_snapshot_matches;
+    use insta::assert_debug_snapshot;
 
     fn do_magic_completion(code: &str) -> Vec<CompletionItem> {
         do_completion(code, CompletionKind::Magic)
@@ -59,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_param_completion_last_param() {
-        assert_debug_snapshot_matches!(
+        assert_debug_snapshot!(
         do_magic_completion(
                 r"
                 fn foo(file_id: FileId) {}
@@ -68,22 +70,22 @@ mod tests {
                 ",
         ),
             @r###"
-       ⋮[
-       ⋮    CompletionItem {
-       ⋮        label: "file_id: FileId",
-       ⋮        source_range: [110; 114),
-       ⋮        delete: [110; 114),
-       ⋮        insert: "file_id: FileId",
-       ⋮        lookup: "file_id",
-       ⋮    },
-       ⋮]
+        [
+            CompletionItem {
+                label: "file_id: FileId",
+                source_range: [110; 114),
+                delete: [110; 114),
+                insert: "file_id: FileId",
+                lookup: "file_id",
+            },
+        ]
         "###
         );
     }
 
     #[test]
     fn test_param_completion_nth_param() {
-        assert_debug_snapshot_matches!(
+        assert_debug_snapshot!(
         do_magic_completion(
                 r"
                 fn foo(file_id: FileId) {}
@@ -92,22 +94,22 @@ mod tests {
                 ",
         ),
             @r###"
-       ⋮[
-       ⋮    CompletionItem {
-       ⋮        label: "file_id: FileId",
-       ⋮        source_range: [110; 114),
-       ⋮        delete: [110; 114),
-       ⋮        insert: "file_id: FileId",
-       ⋮        lookup: "file_id",
-       ⋮    },
-       ⋮]
+        [
+            CompletionItem {
+                label: "file_id: FileId",
+                source_range: [110; 114),
+                delete: [110; 114),
+                insert: "file_id: FileId",
+                lookup: "file_id",
+            },
+        ]
         "###
         );
     }
 
     #[test]
     fn test_param_completion_trait_param() {
-        assert_debug_snapshot_matches!(
+        assert_debug_snapshot!(
         do_magic_completion(
                 r"
                 pub(crate) trait SourceRoot {
@@ -119,15 +121,15 @@ mod tests {
                 ",
         ),
             @r###"
-       ⋮[
-       ⋮    CompletionItem {
-       ⋮        label: "file_id: FileId",
-       ⋮        source_range: [289; 293),
-       ⋮        delete: [289; 293),
-       ⋮        insert: "file_id: FileId",
-       ⋮        lookup: "file_id",
-       ⋮    },
-       ⋮]
+        [
+            CompletionItem {
+                label: "file_id: FileId",
+                source_range: [289; 293),
+                delete: [289; 293),
+                insert: "file_id: FileId",
+                lookup: "file_id",
+            },
+        ]
         "###
         );
     }

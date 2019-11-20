@@ -14,11 +14,12 @@ mod db;
 pub mod mock_analysis;
 mod symbol_index;
 mod change;
+mod source_change;
+mod feature_flags;
 
 mod status;
 mod completion;
 mod runnables;
-mod name_ref_kind;
 mod goto_definition;
 mod goto_type_definition;
 mod extend_selection;
@@ -39,6 +40,9 @@ mod typing;
 mod matching_brace;
 mod display;
 mod inlay_hints;
+mod wasm_shims;
+mod expand;
+mod expand_macro;
 
 #[cfg(test)]
 mod marks;
@@ -47,15 +51,14 @@ mod test_utils;
 
 use std::sync::Arc;
 
+use ra_cfg::CfgOptions;
 use ra_db::{
     salsa::{self, ParallelDatabase},
-    CheckCanceled, SourceDatabase,
+    CheckCanceled, FileLoader, SourceDatabase,
 };
 use ra_syntax::{SourceFile, TextRange, TextUnit};
-use ra_text_edit::TextEdit;
-use relative_path::RelativePathBuf;
 
-use crate::{db::LineIndexDatabase, symbol_index::FileSymbol};
+use crate::{db::LineIndexDatabase, display::ToNav, symbol_index::FileSymbol};
 
 pub use crate::{
     assists::{Assist, AssistId},
@@ -63,13 +66,16 @@ pub use crate::{
     completion::{CompletionItem, CompletionItemKind, InsertTextFormat},
     diagnostics::Severity,
     display::{file_structure, FunctionSignature, NavigationTarget, StructureNode},
+    expand_macro::ExpandedMacro,
+    feature_flags::FeatureFlags,
     folding_ranges::{Fold, FoldKind},
     hover::HoverResult,
     inlay_hints::{InlayHint, InlayKind},
     line_index::{LineCol, LineIndex},
     line_index_utils::translate_offset_with_edit,
-    references::ReferenceSearchResult,
+    references::{ReferenceSearchResult, SearchScope},
     runnables::{Runnable, RunnableKind},
+    source_change::{FileSystemEdit, SourceChange, SourceFileEdit},
     syntax_highlighting::HighlightedRange,
 };
 
@@ -79,99 +85,6 @@ pub use ra_db::{
 };
 
 pub type Cancelable<T> = Result<T, Canceled>;
-
-#[derive(Debug)]
-pub struct SourceChange {
-    pub label: String,
-    pub source_file_edits: Vec<SourceFileEdit>,
-    pub file_system_edits: Vec<FileSystemEdit>,
-    pub cursor_position: Option<FilePosition>,
-}
-
-impl SourceChange {
-    /// Creates a new SourceChange with the given label
-    /// from the edits.
-    pub(crate) fn from_edits<L: Into<String>>(
-        label: L,
-        source_file_edits: Vec<SourceFileEdit>,
-        file_system_edits: Vec<FileSystemEdit>,
-    ) -> Self {
-        SourceChange {
-            label: label.into(),
-            source_file_edits,
-            file_system_edits,
-            cursor_position: None,
-        }
-    }
-
-    /// Creates a new SourceChange with the given label,
-    /// containing only the given `SourceFileEdits`.
-    pub(crate) fn source_file_edits<L: Into<String>>(label: L, edits: Vec<SourceFileEdit>) -> Self {
-        SourceChange {
-            label: label.into(),
-            source_file_edits: edits,
-            file_system_edits: vec![],
-            cursor_position: None,
-        }
-    }
-
-    /// Creates a new SourceChange with the given label,
-    /// containing only the given `FileSystemEdits`.
-    pub(crate) fn file_system_edits<L: Into<String>>(label: L, edits: Vec<FileSystemEdit>) -> Self {
-        SourceChange {
-            label: label.into(),
-            source_file_edits: vec![],
-            file_system_edits: edits,
-            cursor_position: None,
-        }
-    }
-
-    /// Creates a new SourceChange with the given label,
-    /// containing only a single `SourceFileEdit`.
-    pub(crate) fn source_file_edit<L: Into<String>>(label: L, edit: SourceFileEdit) -> Self {
-        SourceChange::source_file_edits(label, vec![edit])
-    }
-
-    /// Creates a new SourceChange with the given label
-    /// from the given `FileId` and `TextEdit`
-    pub(crate) fn source_file_edit_from<L: Into<String>>(
-        label: L,
-        file_id: FileId,
-        edit: TextEdit,
-    ) -> Self {
-        SourceChange::source_file_edit(label, SourceFileEdit { file_id, edit })
-    }
-
-    /// Creates a new SourceChange with the given label
-    /// from the given `FileId` and `TextEdit`
-    pub(crate) fn file_system_edit<L: Into<String>>(label: L, edit: FileSystemEdit) -> Self {
-        SourceChange::file_system_edits(label, vec![edit])
-    }
-
-    /// Sets the cursor position to the given `FilePosition`
-    pub(crate) fn with_cursor(mut self, cursor_position: FilePosition) -> Self {
-        self.cursor_position = Some(cursor_position);
-        self
-    }
-
-    /// Sets the cursor position to the given `FilePosition`
-    pub(crate) fn with_cursor_opt(mut self, cursor_position: Option<FilePosition>) -> Self {
-        self.cursor_position = cursor_position;
-        self
-    }
-}
-
-#[derive(Debug)]
-pub struct SourceFileEdit {
-    pub file_id: FileId,
-    pub edit: TextEdit,
-}
-
-#[derive(Debug)]
-pub enum FileSystemEdit {
-    CreateFile { source_root: SourceRootId, path: RelativePathBuf },
-    MoveFile { src: FileId, dst_source_root: SourceRootId, dst_path: RelativePathBuf },
-}
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -221,6 +134,7 @@ impl Query {
     }
 }
 
+/// Info associated with a text range.
 #[derive(Debug)]
 pub struct RangeInfo<T> {
     pub range: TextRange,
@@ -233,6 +147,8 @@ impl<T> RangeInfo<T> {
     }
 }
 
+/// Contains information about a call site. Specifically the
+/// `FunctionSignature`and current parameter.
 #[derive(Debug)]
 pub struct CallInfo {
     pub signature: FunctionSignature,
@@ -247,18 +163,22 @@ pub struct AnalysisHost {
 
 impl Default for AnalysisHost {
     fn default() -> AnalysisHost {
-        AnalysisHost::new(None)
+        AnalysisHost::new(None, FeatureFlags::default())
     }
 }
 
 impl AnalysisHost {
-    pub fn new(lru_capcity: Option<usize>) -> AnalysisHost {
-        AnalysisHost { db: db::RootDatabase::new(lru_capcity) }
+    pub fn new(lru_capcity: Option<usize>, feature_flags: FeatureFlags) -> AnalysisHost {
+        AnalysisHost { db: db::RootDatabase::new(lru_capcity, feature_flags) }
     }
     /// Returns a snapshot of the current state, which you can query for
     /// semantic information.
     pub fn analysis(&self) -> Analysis {
         Analysis { db: self.db.snapshot() }
+    }
+
+    pub fn feature_flags(&self) -> &FeatureFlags {
+        &self.db.feature_flags
     }
 
     /// Applies changes to the current state of the world. If there are
@@ -278,10 +198,14 @@ impl AnalysisHost {
     pub fn per_query_memory_usage(&mut self) -> Vec<(String, ra_prof::Bytes)> {
         self.db.per_query_memory_usage()
     }
-    pub fn raw_database(&self) -> &(impl hir::db::HirDatabase + salsa::Database) {
+    pub fn raw_database(
+        &self,
+    ) -> &(impl hir::db::HirDatabase + salsa::Database + ra_db::SourceDatabaseExt) {
         &self.db
     }
-    pub fn raw_database_mut(&mut self) -> &mut (impl hir::db::HirDatabase + salsa::Database) {
+    pub fn raw_database_mut(
+        &mut self,
+    ) -> &mut (impl hir::db::HirDatabase + salsa::Database + ra_db::SourceDatabaseExt) {
         &mut self.db
     }
 }
@@ -312,14 +236,23 @@ impl Analysis {
         change.add_root(source_root, true);
         let mut crate_graph = CrateGraph::default();
         let file_id = FileId(0);
-        crate_graph.add_crate_root(file_id, Edition::Edition2018);
+        // FIXME: cfg options
+        // Default to enable test for single file.
+        let mut cfg_options = CfgOptions::default();
+        cfg_options.insert_atom("test".into());
+        crate_graph.add_crate_root(file_id, Edition::Edition2018, cfg_options);
         change.add_file(source_root, file_id, "main.rs".into(), Arc::new(text));
         change.set_crate_graph(crate_graph);
         host.apply_change(change);
         (host.analysis(), file_id)
     }
 
-    /// Debug info about the current state of the analysis
+    /// Features for Analysis.
+    pub fn feature_flags(&self) -> &FeatureFlags {
+        &self.db.feature_flags
+    }
+
+    /// Debug info about the current state of the analysis.
     pub fn status(&self) -> Cancelable<String> {
         self.with_db(|db| status::status(&*db))
     }
@@ -365,6 +298,10 @@ impl Analysis {
         self.with_db(|db| syntax_tree::syntax_tree(&db, file_id, text_range))
     }
 
+    pub fn expand_macro(&self, position: FilePosition) -> Cancelable<Option<ExpandedMacro>> {
+        self.with_db(|db| expand_macro::expand_macro(db, position))
+    }
+
     /// Returns an edit to remove all newlines in the range, cleaning up minor
     /// stuff like trailing commas.
     pub fn join_lines(&self, frange: FileRange) -> Cancelable<SourceChange> {
@@ -384,24 +321,20 @@ impl Analysis {
         self.with_db(|db| typing::on_enter(&db, position))
     }
 
-    /// Returns an edit which should be applied after `=` was typed. Primarily,
-    /// this works when adding `let =`.
-    // FIXME: use a snippet completion instead of this hack here.
-    pub fn on_eq_typed(&self, position: FilePosition) -> Cancelable<Option<SourceChange>> {
-        self.with_db(|db| {
-            let parse = db.parse(position.file_id);
-            let file = parse.tree();
-            let edit = typing::on_eq_typed(&file, position.offset)?;
-            Some(SourceChange::source_file_edit(
-                "add semicolon",
-                SourceFileEdit { edit, file_id: position.file_id },
-            ))
-        })
-    }
-
-    /// Returns an edit which should be applied when a dot ('.') is typed on a blank line, indenting the line appropriately.
-    pub fn on_dot_typed(&self, position: FilePosition) -> Cancelable<Option<SourceChange>> {
-        self.with_db(|db| typing::on_dot_typed(&db, position))
+    /// Returns an edit which should be applied after a character was typed.
+    ///
+    /// This is useful for some on-the-fly fixups, like adding `;` to `let =`
+    /// automatically.
+    pub fn on_char_typed(
+        &self,
+        position: FilePosition,
+        char_typed: char,
+    ) -> Cancelable<Option<SourceChange>> {
+        // Fast path to not even parse the file.
+        if !typing::TRIGGER_CHARS.contains(char_typed) {
+            return Ok(None);
+        }
+        self.with_db(|db| typing::on_char_typed(&db, position, char_typed))
     }
 
     /// Returns a tree representation of symbols in the file. Useful to draw a
@@ -425,11 +358,12 @@ impl Analysis {
         self.with_db(|db| {
             symbol_index::world_symbols(db, query)
                 .into_iter()
-                .map(|s| NavigationTarget::from_symbol(db, s))
+                .map(|s| s.to_nav(db))
                 .collect::<Vec<_>>()
         })
     }
 
+    /// Returns the definitions from the symbol at `position`.
     pub fn goto_definition(
         &self,
         position: FilePosition,
@@ -437,6 +371,7 @@ impl Analysis {
         self.with_db(|db| goto_definition::goto_definition(db, position))
     }
 
+    /// Returns the impls from the symbol at `position`.
     pub fn goto_implementation(
         &self,
         position: FilePosition,
@@ -444,6 +379,7 @@ impl Analysis {
         self.with_db(|db| impls::goto_implementation(db, position))
     }
 
+    /// Returns the type definitions for the symbol at `position`.
     pub fn goto_type_definition(
         &self,
         position: FilePosition,
@@ -455,8 +391,9 @@ impl Analysis {
     pub fn find_all_refs(
         &self,
         position: FilePosition,
+        search_scope: Option<SearchScope>,
     ) -> Cancelable<Option<ReferenceSearchResult>> {
-        self.with_db(|db| references::find_all_refs(db, position))
+        self.with_db(|db| references::find_all_refs(db, position, search_scope).map(|it| it.info))
     }
 
     /// Returns a short text describing element at position.
@@ -526,10 +463,11 @@ impl Analysis {
         &self,
         position: FilePosition,
         new_name: &str,
-    ) -> Cancelable<Option<SourceChange>> {
+    ) -> Cancelable<Option<RangeInfo<SourceChange>>> {
         self.with_db(|db| references::rename(db, position, new_name))
     }
 
+    /// Performs an operation on that may be Canceled.
     fn with_db<F: FnOnce(&db::RootDatabase) -> T + std::panic::UnwindSafe, T>(
         &self,
         f: F,

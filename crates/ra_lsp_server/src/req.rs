@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use lsp_types::{Location, Position, Range, TextDocumentIdentifier, Url};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -5,10 +7,11 @@ use serde::{Deserialize, Serialize};
 pub use lsp_types::{
     notification::*, request::*, ApplyWorkspaceEditParams, CodeActionParams, CodeLens,
     CodeLensParams, CompletionParams, CompletionResponse, DidChangeConfigurationParams,
-    DocumentOnTypeFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, Hover,
-    InitializeResult, MessageType, PublishDiagnosticsParams, ReferenceParams, ShowMessageParams,
-    SignatureHelp, TextDocumentEdit, TextDocumentPositionParams, TextEdit, WorkspaceEdit,
-    WorkspaceSymbolParams,
+    DidChangeWatchedFilesParams, DidChangeWatchedFilesRegistrationOptions,
+    DocumentOnTypeFormattingParams, DocumentSymbolParams, DocumentSymbolResponse,
+    FileSystemWatcher, Hover, InitializeResult, MessageType, PublishDiagnosticsParams,
+    ReferenceParams, Registration, RegistrationParams, ShowMessageParams, SignatureHelp,
+    TextDocumentEdit, TextDocumentPositionParams, TextEdit, WorkspaceEdit, WorkspaceSymbolParams,
 };
 
 pub enum AnalyzerStatus {}
@@ -40,6 +43,28 @@ impl Request for SyntaxTree {
 pub struct SyntaxTreeParams {
     pub text_document: TextDocumentIdentifier,
     pub range: Option<Range>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpandedMacro {
+    pub name: String,
+    pub expansion: String,
+}
+
+pub enum ExpandMacro {}
+
+impl Request for ExpandMacro {
+    type Params = ExpandMacroParams;
+    type Result = Option<ExpandedMacro>;
+    const METHOD: &'static str = "rust-analyzer/expandMacro";
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpandMacroParams {
+    pub text_document: TextDocumentIdentifier,
+    pub position: Option<Position>,
 }
 
 pub enum SelectionRangeRequest {}

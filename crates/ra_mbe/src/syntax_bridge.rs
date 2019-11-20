@@ -1,4 +1,6 @@
-use ra_parser::{ParseError, TreeSink};
+//! FIXME: write short doc here
+
+use ra_parser::{FragmentKind, ParseError, TreeSink};
 use ra_syntax::{
     ast, AstNode, AstToken, NodeOrToken, Parse, SmolStr, SyntaxKind, SyntaxKind::*, SyntaxNode,
     SyntaxTreeBuilder, TextRange, TextUnit, T,
@@ -9,27 +11,25 @@ use crate::subtree_source::SubtreeTokenSource;
 use crate::ExpandError;
 
 /// Maps `tt::TokenId` to the relative range of the original token.
-#[derive(Default)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub struct TokenMap {
     /// Maps `tt::TokenId` to the *relative* source range.
-    tokens: Vec<TextRange>,
+    entries: Vec<(tt::TokenId, TextRange)>,
 }
 
 /// Convert the syntax tree (what user has written) to a `TokenTree` (what macro
 /// will consume).
 pub fn ast_to_token_tree(ast: &ast::TokenTree) -> Option<(tt::Subtree, TokenMap)> {
-    let mut token_map = TokenMap::default();
-    let node = ast.syntax();
-    let tt = convert_tt(&mut token_map, node.text_range().start(), node)?;
-    Some((tt, token_map))
+    syntax_node_to_token_tree(ast.syntax())
 }
 
 /// Convert the syntax node to a `TokenTree` (what macro
 /// will consume).
 pub fn syntax_node_to_token_tree(node: &SyntaxNode) -> Option<(tt::Subtree, TokenMap)> {
-    let mut token_map = TokenMap::default();
-    let tt = convert_tt(&mut token_map, node.text_range().start(), node)?;
-    Some((tt, token_map))
+    let global_offset = node.text_range().start();
+    let mut c = Convertor { map: TokenMap::default(), global_offset, next_id: 0 };
+    let subtree = c.go(node)?;
+    Some((subtree, c.map))
 }
 
 // The following items are what `rustc` macro can be parsed into :
@@ -43,72 +43,44 @@ pub fn syntax_node_to_token_tree(node: &SyntaxNode) -> Option<(tt::Subtree, Toke
 // * TraitItems(SmallVec<[ast::TraitItem; 1]>)
 // * ImplItems(SmallVec<[ast::ImplItem; 1]>)
 // * ForeignItems(SmallVec<[ast::ForeignItem; 1]>
-//
-//
 
-fn token_tree_to_syntax_node<F>(tt: &tt::Subtree, f: F) -> Result<Parse<SyntaxNode>, ExpandError>
-where
-    F: Fn(&mut dyn ra_parser::TokenSource, &mut dyn ra_parser::TreeSink),
-{
-    let tokens = [tt.clone().into()];
+pub fn token_tree_to_syntax_node(
+    tt: &tt::Subtree,
+    fragment_kind: FragmentKind,
+) -> Result<(Parse<SyntaxNode>, TokenMap), ExpandError> {
+    let tmp;
+    let tokens = match tt {
+        tt::Subtree { delimiter: tt::Delimiter::None, token_trees } => token_trees.as_slice(),
+        _ => {
+            tmp = [tt.clone().into()];
+            &tmp[..]
+        }
+    };
     let buffer = TokenBuffer::new(&tokens);
     let mut token_source = SubtreeTokenSource::new(&buffer);
     let mut tree_sink = TtTreeSink::new(buffer.begin());
-    f(&mut token_source, &mut tree_sink);
+    ra_parser::parse_fragment(&mut token_source, &mut tree_sink, fragment_kind);
     if tree_sink.roots.len() != 1 {
         return Err(ExpandError::ConversionError);
     }
     //FIXME: would be cool to report errors
-    let parse = tree_sink.inner.finish();
-    Ok(parse)
-}
-
-/// Parses the token tree (result of macro expansion) to an expression
-pub fn token_tree_to_expr(tt: &tt::Subtree) -> Result<Parse<ast::Expr>, ExpandError> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse_expr)?;
-    parse.cast().ok_or_else(|| crate::ExpandError::ConversionError)
-}
-
-/// Parses the token tree (result of macro expansion) to a Pattern
-pub fn token_tree_to_pat(tt: &tt::Subtree) -> Result<Parse<ast::Pat>, ExpandError> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse_pat)?;
-    parse.cast().ok_or_else(|| crate::ExpandError::ConversionError)
-}
-
-/// Parses the token tree (result of macro expansion) to a Type
-pub fn token_tree_to_ty(tt: &tt::Subtree) -> Result<Parse<ast::TypeRef>, ExpandError> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse_ty)?;
-    parse.cast().ok_or_else(|| crate::ExpandError::ConversionError)
-}
-
-/// Parses the token tree (result of macro expansion) as a sequence of stmts
-pub fn token_tree_to_macro_stmts(tt: &tt::Subtree) -> Result<Parse<ast::MacroStmts>, ExpandError> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse_macro_stmts)?;
-    parse.cast().ok_or_else(|| crate::ExpandError::ConversionError)
-}
-
-/// Parses the token tree (result of macro expansion) as a sequence of items
-pub fn token_tree_to_macro_items(tt: &tt::Subtree) -> Result<Parse<ast::MacroItems>, ExpandError> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse_macro_items)?;
-    parse.cast().ok_or_else(|| crate::ExpandError::ConversionError)
-}
-
-/// Parses the token tree (result of macro expansion) as a sequence of items
-pub fn token_tree_to_ast_item_list(tt: &tt::Subtree) -> Parse<ast::SourceFile> {
-    let parse = token_tree_to_syntax_node(tt, ra_parser::parse).unwrap();
-    parse.cast().unwrap()
+    let (parse, range_map) = tree_sink.finish();
+    Ok((parse, range_map))
 }
 
 impl TokenMap {
-    pub fn relative_range_of(&self, tt: tt::TokenId) -> Option<TextRange> {
-        let idx = tt.0 as usize;
-        self.tokens.get(idx).copied()
+    pub fn token_by_range(&self, relative_range: TextRange) -> Option<tt::TokenId> {
+        let &(token_id, _) = self.entries.iter().find(|(_, range)| *range == relative_range)?;
+        Some(token_id)
     }
 
-    fn alloc(&mut self, relative_range: TextRange) -> tt::TokenId {
-        let id = self.tokens.len();
-        self.tokens.push(relative_range);
-        tt::TokenId(id as u32)
+    pub fn range_by_token(&self, token_id: tt::TokenId) -> Option<TextRange> {
+        let &(_, range) = self.entries.iter().find(|(tid, _)| *tid == token_id)?;
+        Some(range)
+    }
+
+    fn insert(&mut self, token_id: tt::TokenId, relative_range: TextRange) {
+        self.entries.push((token_id, relative_range));
     }
 }
 
@@ -173,84 +145,98 @@ fn convert_doc_comment(token: &ra_syntax::SyntaxToken) -> Option<Vec<tt::TokenTr
     }
 }
 
-fn convert_tt(
-    token_map: &mut TokenMap,
+struct Convertor {
+    map: TokenMap,
     global_offset: TextUnit,
-    tt: &SyntaxNode,
-) -> Option<tt::Subtree> {
-    // This tree is empty
-    if tt.first_child_or_token().is_none() {
-        return Some(tt::Subtree { token_trees: vec![], delimiter: tt::Delimiter::None });
-    }
+    next_id: u32,
+}
 
-    let first_child = tt.first_child_or_token()?;
-    let last_child = tt.last_child_or_token()?;
-    let (delimiter, skip_first) = match (first_child.kind(), last_child.kind()) {
-        (T!['('], T![')']) => (tt::Delimiter::Parenthesis, true),
-        (T!['{'], T!['}']) => (tt::Delimiter::Brace, true),
-        (T!['['], T![']']) => (tt::Delimiter::Bracket, true),
-        _ => (tt::Delimiter::None, false),
-    };
-
-    let mut token_trees = Vec::new();
-    let mut child_iter = tt.children_with_tokens().skip(skip_first as usize).peekable();
-
-    while let Some(child) = child_iter.next() {
-        if skip_first && (child == first_child || child == last_child) {
-            continue;
+impl Convertor {
+    fn go(&mut self, tt: &SyntaxNode) -> Option<tt::Subtree> {
+        // This tree is empty
+        if tt.first_child_or_token().is_none() {
+            return Some(tt::Subtree { token_trees: vec![], delimiter: tt::Delimiter::None });
         }
 
-        match child {
-            NodeOrToken::Token(token) => {
-                if let Some(doc_tokens) = convert_doc_comment(&token) {
-                    token_trees.extend(doc_tokens);
-                } else if token.kind().is_trivia() {
-                    continue;
-                } else if token.kind().is_punct() {
-                    assert!(token.text().len() == 1, "Input ast::token punct must be single char.");
-                    let char = token.text().chars().next().unwrap();
+        let first_child = tt.first_child_or_token()?;
+        let last_child = tt.last_child_or_token()?;
+        let (delimiter, skip_first) = match (first_child.kind(), last_child.kind()) {
+            (T!['('], T![')']) => (tt::Delimiter::Parenthesis, true),
+            (T!['{'], T!['}']) => (tt::Delimiter::Brace, true),
+            (T!['['], T![']']) => (tt::Delimiter::Bracket, true),
+            _ => (tt::Delimiter::None, false),
+        };
 
-                    let spacing = match child_iter.peek() {
-                        Some(NodeOrToken::Token(token)) => {
-                            if token.kind().is_punct() {
-                                tt::Spacing::Joint
-                            } else {
-                                tt::Spacing::Alone
+        let mut token_trees = Vec::new();
+        let mut child_iter = tt.children_with_tokens().skip(skip_first as usize).peekable();
+
+        while let Some(child) = child_iter.next() {
+            if skip_first && (child == first_child || child == last_child) {
+                continue;
+            }
+
+            match child {
+                NodeOrToken::Token(token) => {
+                    if let Some(doc_tokens) = convert_doc_comment(&token) {
+                        token_trees.extend(doc_tokens);
+                    } else if token.kind().is_trivia() {
+                        continue;
+                    } else if token.kind().is_punct() {
+                        assert!(
+                            token.text().len() == 1,
+                            "Input ast::token punct must be single char."
+                        );
+                        let char = token.text().chars().next().unwrap();
+
+                        let spacing = match child_iter.peek() {
+                            Some(NodeOrToken::Token(token)) => {
+                                if token.kind().is_punct() {
+                                    tt::Spacing::Joint
+                                } else {
+                                    tt::Spacing::Alone
+                                }
                             }
-                        }
-                        _ => tt::Spacing::Alone,
-                    };
-
-                    token_trees.push(tt::Leaf::from(tt::Punct { char, spacing }).into());
-                } else {
-                    let child: tt::TokenTree =
-                        if token.kind() == T![true] || token.kind() == T![false] {
-                            tt::Leaf::from(tt::Literal { text: token.text().clone() }).into()
-                        } else if token.kind().is_keyword()
-                            || token.kind() == IDENT
-                            || token.kind() == LIFETIME
-                        {
-                            let relative_range = token.text_range() - global_offset;
-                            let id = token_map.alloc(relative_range);
-                            let text = token.text().clone();
-                            tt::Leaf::from(tt::Ident { text, id }).into()
-                        } else if token.kind().is_literal() {
-                            tt::Leaf::from(tt::Literal { text: token.text().clone() }).into()
-                        } else {
-                            return None;
+                            _ => tt::Spacing::Alone,
                         };
+
+                        token_trees.push(tt::Leaf::from(tt::Punct { char, spacing }).into());
+                    } else {
+                        let child: tt::TokenTree =
+                            if token.kind() == T![true] || token.kind() == T![false] {
+                                tt::Leaf::from(tt::Literal { text: token.text().clone() }).into()
+                            } else if token.kind().is_keyword()
+                                || token.kind() == IDENT
+                                || token.kind() == LIFETIME
+                            {
+                                let id = self.alloc(token.text_range());
+                                let text = token.text().clone();
+                                tt::Leaf::from(tt::Ident { text, id }).into()
+                            } else if token.kind().is_literal() {
+                                tt::Leaf::from(tt::Literal { text: token.text().clone() }).into()
+                            } else {
+                                return None;
+                            };
+                        token_trees.push(child);
+                    }
+                }
+                NodeOrToken::Node(node) => {
+                    let child = self.go(&node)?.into();
                     token_trees.push(child);
                 }
-            }
-            NodeOrToken::Node(node) => {
-                let child = convert_tt(token_map, global_offset, &node)?.into();
-                token_trees.push(child);
-            }
-        };
+            };
+        }
+
+        let res = tt::Subtree { delimiter, token_trees };
+        Some(res)
     }
 
-    let res = tt::Subtree { delimiter, token_trees };
-    Some(res)
+    fn alloc(&mut self, absolute_range: TextRange) -> tt::TokenId {
+        let relative_range = absolute_range - self.global_offset;
+        let token_id = tt::TokenId(self.next_id);
+        self.next_id += 1;
+        self.map.insert(token_id, relative_range);
+        token_id
+    }
 }
 
 struct TtTreeSink<'a> {
@@ -258,6 +244,7 @@ struct TtTreeSink<'a> {
     cursor: Cursor<'a>,
     text_pos: TextUnit,
     inner: SyntaxTreeBuilder,
+    token_map: TokenMap,
 
     // Number of roots
     // Use for detect ill-form tree which is not single root
@@ -272,7 +259,12 @@ impl<'a> TtTreeSink<'a> {
             text_pos: 0.into(),
             inner: SyntaxTreeBuilder::default(),
             roots: smallvec::SmallVec::new(),
+            token_map: TokenMap::default(),
         }
+    }
+
+    fn finish(self) -> (Parse<SyntaxNode>, TokenMap) {
+        (self.inner.finish(), self.token_map)
     }
 }
 
@@ -303,6 +295,15 @@ impl<'a> TreeSink for TtTreeSink<'a> {
 
             match self.cursor.token_tree() {
                 Some(tt::TokenTree::Leaf(leaf)) => {
+                    // Mark the range if needed
+                    if let tt::Leaf::Ident(ident) = leaf {
+                        if kind == IDENT {
+                            let range =
+                                TextRange::offset_len(self.text_pos, TextUnit::of_str(&ident.text));
+                            self.token_map.insert(ident.id, range);
+                        }
+                    }
+
                     self.cursor = self.cursor.bump();
                     self.buf += &format!("{}", leaf);
                 }
@@ -333,6 +334,7 @@ impl<'a> TreeSink for TtTreeSink<'a> {
         {
             if curr.spacing == tt::Spacing::Alone {
                 self.inner.token(WHITESPACE, " ".into());
+                self.text_pos += TextUnit::of_char(' ');
             }
         }
     }
@@ -379,7 +381,7 @@ mod tests {
             "#,
         );
         let expansion = expand(&rules, "literals!(foo);");
-        let tts = &[expansion.clone().into()];
+        let tts = &[expansion.into()];
         let buffer = tt::buffer::TokenBuffer::new(tts);
         let mut tt_src = SubtreeTokenSource::new(&buffer);
         let mut tokens = vec![];
@@ -419,6 +421,6 @@ mod tests {
             "#,
         );
         let expansion = expand(&rules, "stmts!();");
-        assert!(token_tree_to_expr(&expansion).is_err());
+        assert!(token_tree_to_syntax_node(&expansion, FragmentKind::Expr).is_err());
     }
 }

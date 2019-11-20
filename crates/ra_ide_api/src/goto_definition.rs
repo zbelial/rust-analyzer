@@ -1,17 +1,16 @@
-use ra_db::{FileId, SourceDatabase};
+//! FIXME: write short doc here
+
+use hir::{db::AstDatabase, Source};
 use ra_syntax::{
-    algo::{
-        find_node_at_offset,
-        visit::{visitor, Visitor},
-    },
     ast::{self, DocCommentsOwner},
-    AstNode, SyntaxNode,
+    match_ast, AstNode, SyntaxNode,
 };
 
 use crate::{
     db::RootDatabase,
-    display::ShortLabel,
-    name_ref_kind::{classify_name_ref, NameRefKind::*},
+    display::{ShortLabel, ToNav},
+    expand::descend_into_macros,
+    references::{classify_name_ref, NameKind::*},
     FilePosition, NavigationTarget, RangeInfo,
 };
 
@@ -19,17 +18,26 @@ pub(crate) fn goto_definition(
     db: &RootDatabase,
     position: FilePosition,
 ) -> Option<RangeInfo<Vec<NavigationTarget>>> {
-    let parse = db.parse(position.file_id);
-    let syntax = parse.tree().syntax().clone();
-    if let Some(name_ref) = find_node_at_offset::<ast::NameRef>(&syntax, position.offset) {
-        let navs = reference_definition(db, position.file_id, &name_ref).to_vec();
-        return Some(RangeInfo::new(name_ref.syntax().text_range(), navs.to_vec()));
-    }
-    if let Some(name) = find_node_at_offset::<ast::Name>(&syntax, position.offset) {
-        let navs = name_definition(db, position.file_id, &name)?;
-        return Some(RangeInfo::new(name.syntax().text_range(), navs));
-    }
-    None
+    let file = db.parse_or_expand(position.file_id.into())?;
+    let token = file.token_at_offset(position.offset).filter(|it| !it.kind().is_trivia()).next()?;
+    let token = descend_into_macros(db, position.file_id, token);
+
+    let res = match_ast! {
+        match (token.ast.parent()) {
+            ast::NameRef(name_ref) => {
+                let navs = reference_definition(db, token.with_ast(&name_ref)).to_vec();
+                RangeInfo::new(name_ref.syntax().text_range(), navs.to_vec())
+            },
+            ast::Name(name) => {
+                let navs = name_definition(db, token.with_ast(&name))?;
+                RangeInfo::new(name.syntax().text_range(), navs)
+
+            },
+            _ => return None,
+        }
+    };
+
+    Some(res)
 }
 
 #[derive(Debug)]
@@ -50,29 +58,25 @@ impl ReferenceResult {
 
 pub(crate) fn reference_definition(
     db: &RootDatabase,
-    file_id: FileId,
-    name_ref: &ast::NameRef,
+    name_ref: Source<&ast::NameRef>,
 ) -> ReferenceResult {
     use self::ReferenceResult::*;
 
-    let analyzer = hir::SourceAnalyzer::new(db, file_id, name_ref.syntax(), None);
-
-    match classify_name_ref(db, &analyzer, name_ref) {
-        Some(Macro(mac)) => return Exact(NavigationTarget::from_macro_def(db, mac)),
-        Some(FieldAccess(field)) => return Exact(NavigationTarget::from_field(db, field)),
-        Some(AssocItem(assoc)) => return Exact(NavigationTarget::from_impl_item(db, assoc)),
-        Some(Method(func)) => return Exact(NavigationTarget::from_def_source(db, func)),
+    let name_kind = classify_name_ref(db, name_ref).map(|d| d.kind);
+    match name_kind {
+        Some(Macro(mac)) => return Exact(mac.to_nav(db)),
+        Some(Field(field)) => return Exact(field.to_nav(db)),
+        Some(AssocItem(assoc)) => return Exact(assoc.to_nav(db)),
         Some(Def(def)) => match NavigationTarget::from_def(db, def) {
             Some(nav) => return Exact(nav),
             None => return Approximate(vec![]),
         },
         Some(SelfType(ty)) => {
-            if let Some((def_id, _)) = ty.as_adt() {
-                return Exact(NavigationTarget::from_adt_def(db, def_id));
+            if let Some((adt, _)) = ty.as_adt() {
+                return Exact(adt.to_nav(db));
             }
         }
-        Some(Pat(pat)) => return Exact(NavigationTarget::from_pat(db, file_id, pat)),
-        Some(SelfParam(par)) => return Exact(NavigationTarget::from_self_param(file_id, par)),
+        Some(Local(local)) => return Exact(local.to_nav(db)),
         Some(GenericParam(_)) => {
             // FIXME: go to the generic param def
         }
@@ -80,124 +84,130 @@ pub(crate) fn reference_definition(
     };
 
     // Fallback index based approach:
-    let navs = crate::symbol_index::index_resolve(db, name_ref)
+    let navs = crate::symbol_index::index_resolve(db, name_ref.ast)
         .into_iter()
-        .map(|s| NavigationTarget::from_symbol(db, s))
+        .map(|s| s.to_nav(db))
         .collect();
     Approximate(navs)
 }
 
 pub(crate) fn name_definition(
     db: &RootDatabase,
-    file_id: FileId,
-    name: &ast::Name,
+    name: Source<&ast::Name>,
 ) -> Option<Vec<NavigationTarget>> {
-    let parent = name.syntax().parent()?;
+    let parent = name.ast.syntax().parent()?;
 
     if let Some(module) = ast::Module::cast(parent.clone()) {
         if module.has_semi() {
-            if let Some(child_module) =
-                hir::source_binder::module_from_declaration(db, file_id, module)
-            {
-                let nav = NavigationTarget::from_module(db, child_module);
+            let src = name.with_ast(module);
+            if let Some(child_module) = hir::Module::from_declaration(db, src) {
+                let nav = child_module.to_nav(db);
                 return Some(vec![nav]);
             }
         }
     }
 
-    if let Some(nav) = named_target(file_id, &parent) {
+    if let Some(nav) = named_target(db, name.with_ast(&parent)) {
         return Some(vec![nav]);
     }
 
     None
 }
 
-fn named_target(file_id: FileId, node: &SyntaxNode) -> Option<NavigationTarget> {
-    visitor()
-        .visit(|node: ast::StructDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::EnumDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::EnumVariant| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::FnDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::TypeAliasDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::ConstDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::StaticDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::TraitDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::NamedFieldDef| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::Module| {
-            NavigationTarget::from_named(
-                file_id,
-                &node,
-                node.doc_comment_text(),
-                node.short_label(),
-            )
-        })
-        .visit(|node: ast::MacroCall| {
-            NavigationTarget::from_named(file_id, &node, node.doc_comment_text(), None)
-        })
-        .accept(node)
+fn named_target(db: &RootDatabase, node: Source<&SyntaxNode>) -> Option<NavigationTarget> {
+    match_ast! {
+        match (node.ast) {
+            ast::StructDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::EnumDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::EnumVariant(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::FnDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::TypeAliasDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::ConstDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::StaticDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::TraitDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::RecordFieldDef(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::Module(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    it.short_label(),
+                ))
+            },
+            ast::MacroCall(it) => {
+                Some(NavigationTarget::from_named(
+                    db,
+                    node.with_ast(&it),
+                    it.doc_comment_text(),
+                    None,
+                ))
+            },
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -312,6 +322,65 @@ mod tests {
     }
 
     #[test]
+    fn goto_definition_works_for_macros_in_use_tree() {
+        check_goto(
+            "
+            //- /lib.rs
+            use foo::foo<|>;
+
+            //- /foo/lib.rs
+            #[macro_export]
+            macro_rules! foo {
+                () => {
+                    {}
+                };
+            }
+            ",
+            "foo MACRO_CALL FileId(2) [0; 66) [29; 32)",
+        );
+    }
+
+    #[test]
+    fn goto_definition_works_for_macro_defined_fn_with_arg() {
+        check_goto(
+            "
+            //- /lib.rs
+            macro_rules! define_fn {
+                ($name:ident) => (fn $name() {})
+            }
+
+            define_fn!(
+                foo
+            )
+
+            fn bar() {
+               <|>foo();
+            }
+            ",
+            "foo FN_DEF FileId(1) [80; 83) [80; 83)",
+        );
+    }
+
+    #[test]
+    fn goto_definition_works_for_macro_defined_fn_no_arg() {
+        check_goto(
+            "
+            //- /lib.rs
+            macro_rules! define_fn {
+                () => (fn foo() {})
+            }
+
+            define_fn!();
+
+            fn bar() {
+               <|>foo();
+            }
+            ",
+            "foo FN_DEF FileId(1) [39; 42) [39; 42)",
+        );
+    }
+
+    #[test]
     fn goto_definition_works_for_methods() {
         covers!(goto_definition_works_for_methods);
         check_goto(
@@ -344,13 +413,13 @@ mod tests {
                 foo.spam<|>;
             }
             ",
-            "spam NAMED_FIELD_DEF FileId(1) [17; 26) [17; 21)",
+            "spam RECORD_FIELD_DEF FileId(1) [17; 26) [17; 21)",
         );
     }
 
     #[test]
-    fn goto_definition_works_for_named_fields() {
-        covers!(goto_definition_works_for_named_fields);
+    fn goto_definition_works_for_record_fields() {
+        covers!(goto_definition_works_for_record_fields);
         check_goto(
             "
             //- /lib.rs
@@ -364,9 +433,64 @@ mod tests {
                 }
             }
             ",
-            "spam NAMED_FIELD_DEF FileId(1) [17; 26) [17; 21)",
+            "spam RECORD_FIELD_DEF FileId(1) [17; 26) [17; 21)",
         );
     }
+
+    #[test]
+    fn goto_definition_works_for_ufcs_inherent_methods() {
+        check_goto(
+            "
+            //- /lib.rs
+            struct Foo;
+            impl Foo {
+                fn frobnicate() {  }
+            }
+
+            fn bar(foo: &Foo) {
+                Foo::frobnicate<|>();
+            }
+            ",
+            "frobnicate FN_DEF FileId(1) [27; 47) [30; 40)",
+        );
+    }
+
+    #[test]
+    fn goto_definition_works_for_ufcs_trait_methods_through_traits() {
+        check_goto(
+            "
+            //- /lib.rs
+            trait Foo {
+                fn frobnicate();
+            }
+
+            fn bar() {
+                Foo::frobnicate<|>();
+            }
+            ",
+            "frobnicate FN_DEF FileId(1) [16; 32) [19; 29)",
+        );
+    }
+
+    #[test]
+    fn goto_definition_works_for_ufcs_trait_methods_through_self() {
+        check_goto(
+            "
+            //- /lib.rs
+            struct Foo;
+            trait Trait {
+                fn frobnicate();
+            }
+            impl Trait for Foo {}
+
+            fn bar() {
+                Foo::frobnicate<|>();
+            }
+            ",
+            "frobnicate FN_DEF FileId(1) [30; 46) [33; 43)",
+        );
+    }
+
     #[test]
     fn goto_definition_on_self() {
         check_goto(
@@ -473,7 +597,7 @@ mod tests {
                 field<|>: string,
             }
             "#,
-            "field NAMED_FIELD_DEF FileId(1) [17; 30) [17; 22)",
+            "field RECORD_FIELD_DEF FileId(1) [17; 30) [17; 22)",
         );
 
         check_goto(
@@ -547,6 +671,25 @@ mod tests {
             }
             "#,
             "bar MODULE FileId(1) [0; 11) [4; 7)",
+        );
+    }
+
+    #[test]
+    fn goto_from_macro() {
+        check_goto(
+            "
+            //- /lib.rs
+            macro_rules! id {
+                ($($tt:tt)*) => { $($tt)* }
+            }
+            fn foo() {}
+            id! {
+                fn bar() {
+                    fo<|>o();
+                }
+            }
+            ",
+            "foo FN_DEF FileId(1) [52; 63) [55; 58)",
         );
     }
 }

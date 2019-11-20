@@ -1,8 +1,10 @@
-use hir::{db::HirDatabase, source_binder, ApplicationTy, Ty, TypeCtor};
+//! FIXME: write short doc here
+
+use hir::{db::HirDatabase, ApplicationTy, FromSource, Ty, TypeCtor};
 use ra_db::SourceDatabase;
 use ra_syntax::{algo::find_node_at_offset, ast, AstNode};
 
-use crate::{db::RootDatabase, FilePosition, NavigationTarget, RangeInfo};
+use crate::{db::RootDatabase, display::ToNav, FilePosition, NavigationTarget, RangeInfo};
 
 pub(crate) fn goto_implementation(
     db: &RootDatabase,
@@ -11,17 +13,21 @@ pub(crate) fn goto_implementation(
     let parse = db.parse(position.file_id);
     let syntax = parse.tree().syntax().clone();
 
-    let module = source_binder::module_from_position(db, position)?;
+    let src = hir::ModuleSource::from_position(db, position);
+    let module = hir::Module::from_definition(
+        db,
+        hir::Source { file_id: position.file_id.into(), ast: src },
+    )?;
 
     if let Some(nominal_def) = find_node_at_offset::<ast::NominalDef>(&syntax, position.offset) {
         return Some(RangeInfo::new(
             nominal_def.syntax().text_range(),
-            impls_for_def(db, &nominal_def, module)?,
+            impls_for_def(db, position, &nominal_def, module)?,
         ));
     } else if let Some(trait_def) = find_node_at_offset::<ast::TraitDef>(&syntax, position.offset) {
         return Some(RangeInfo::new(
             trait_def.syntax().text_range(),
-            impls_for_trait(db, &trait_def, module)?,
+            impls_for_trait(db, position, &trait_def, module)?,
         ));
     }
 
@@ -30,46 +36,46 @@ pub(crate) fn goto_implementation(
 
 fn impls_for_def(
     db: &RootDatabase,
+    position: FilePosition,
     node: &ast::NominalDef,
     module: hir::Module,
 ) -> Option<Vec<NavigationTarget>> {
-    let ty = match node.kind() {
-        ast::NominalDefKind::StructDef(def) => {
-            source_binder::struct_from_module(db, module, &def).ty(db)
+    let ty = match node {
+        ast::NominalDef::StructDef(def) => {
+            let src = hir::Source { file_id: position.file_id.into(), ast: def.clone() };
+            hir::Struct::from_source(db, src)?.ty(db)
         }
-        ast::NominalDefKind::EnumDef(def) => {
-            source_binder::enum_from_module(db, module, &def).ty(db)
+        ast::NominalDef::EnumDef(def) => {
+            let src = hir::Source { file_id: position.file_id.into(), ast: def.clone() };
+            hir::Enum::from_source(db, src)?.ty(db)
         }
     };
 
-    let krate = module.krate(db)?;
+    let krate = module.krate();
     let impls = db.impls_in_crate(krate);
 
     Some(
         impls
             .all_impls()
             .filter(|impl_block| is_equal_for_find_impls(&ty, &impl_block.target_ty(db)))
-            .map(|imp| NavigationTarget::from_impl_block(db, imp))
+            .map(|imp| imp.to_nav(db))
             .collect(),
     )
 }
 
 fn impls_for_trait(
     db: &RootDatabase,
+    position: FilePosition,
     node: &ast::TraitDef,
     module: hir::Module,
 ) -> Option<Vec<NavigationTarget>> {
-    let tr = source_binder::trait_from_module(db, module, node);
+    let src = hir::Source { file_id: position.file_id.into(), ast: node.clone() };
+    let tr = hir::Trait::from_source(db, src)?;
 
-    let krate = module.krate(db)?;
+    let krate = module.krate();
     let impls = db.impls_in_crate(krate);
 
-    Some(
-        impls
-            .lookup_impl_blocks_for_trait(tr)
-            .map(|imp| NavigationTarget::from_impl_block(db, imp))
-            .collect(),
-    )
+    Some(impls.lookup_impl_blocks_for_trait(tr).map(|imp| imp.to_nav(db)).collect())
 }
 
 fn is_equal_for_find_impls(original_ty: &Ty, impl_ty: &Ty) -> bool {

@@ -22,7 +22,7 @@ const PROFILE: &'static str = "";
 #[test]
 fn completes_items_from_standard_library() {
     let project_start = Instant::now();
-    let server = project(
+    let server = Project::with_fixture(
         r#"
 //- Cargo.toml
 [package]
@@ -32,7 +32,9 @@ version = "0.0.0"
 //- src/lib.rs
 use std::collections::Spam;
 "#,
-    );
+    )
+    .with_sysroot(true)
+    .server();
     server.wait_until_workspace_is_loaded();
     eprintln!("loading took    {:?}", project_start.elapsed());
     let completion_start = Instant::now();
@@ -206,7 +208,7 @@ pub use std::collections::HashMap;
                 "range": {
                     "end": {
                         "character": 0,
-                        "line": 6
+                        "line": 7
                     },
                     "start": {
                         "character": 0,
@@ -284,7 +286,13 @@ fn test_missing_module_code_action_in_json_project() {
 
     let project = json!({
         "roots": [path],
-        "crates": [ { "root_module": path.join("src/lib.rs"), "deps": [], "edition": "2015" } ]
+        "crates": [ {
+            "root_module": path.join("src/lib.rs"),
+            "deps": [],
+            "edition": "2015",
+            "atom_cfgs": [],
+            "key_value_cfgs": {}
+        } ]
     });
 
     let code = format!(
@@ -349,7 +357,7 @@ fn main() {{}}
 fn diagnostics_dont_block_typing() {
     let librs: String = (0..10).map(|i| format!("mod m{};", i)).collect();
     let libs: String = (0..10).map(|i| format!("//- src/m{}.rs\nfn foo() {{}}\n\n", i)).collect();
-    let server = project(&format!(
+    let server = Project::with_fixture(&format!(
         r#"
 //- Cargo.toml
 [package]
@@ -364,7 +372,10 @@ version = "0.0.0"
 fn main() {{}}
 "#,
         librs, libs
-    ));
+    ))
+    .with_sysroot(true)
+    .server();
+
     server.wait_until_workspace_is_loaded();
     for i in 0..10 {
         server.notification::<DidOpenTextDocument>(DidOpenTextDocumentParams {
@@ -408,4 +419,50 @@ fn main() {{}}
     );
     let elapsed = start.elapsed();
     assert!(elapsed.as_millis() < 2000, "typing enter took {:?}", elapsed);
+}
+
+#[test]
+fn preserves_dos_line_endings() {
+    let server = Project::with_fixture(
+        &"
+//- Cargo.toml
+[package]
+name = \"foo\"
+version = \"0.0.0\"
+
+//- src/main.rs
+/// Some Docs\r\nfn main() {}
+",
+    )
+    .server();
+
+    server.request::<OnEnter>(
+        TextDocumentPositionParams {
+            text_document: server.doc_id("src/main.rs"),
+            position: Position { line: 0, character: 8 },
+        },
+        json!({
+          "cursorPosition": {
+            "position": { "line": 1, "character": 4 },
+            "textDocument": { "uri": "file:///[..]src/main.rs" }
+          },
+          "label": "on enter",
+          "workspaceEdit": {
+            "documentChanges": [
+              {
+                "edits": [
+                  {
+                    "newText": "\r\n/// ",
+                    "range": {
+                      "end": { "line": 0, "character": 8 },
+                      "start": { "line": 0, "character": 8 }
+                    }
+                  }
+                ],
+                "textDocument": { "uri": "file:///[..]src/main.rs", "version": null }
+              }
+            ]
+          }
+        }),
+    );
 }

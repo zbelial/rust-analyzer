@@ -1,5 +1,4 @@
 import * as child_process from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -15,23 +14,23 @@ import {
 import SuggestedFixCollection from '../utils/diagnostics/SuggestedFixCollection';
 import { areDiagnosticsEqual } from '../utils/diagnostics/vscode';
 
-export function registerCargoWatchProvider(
+export async function registerCargoWatchProvider(
     subscriptions: vscode.Disposable[]
-): CargoWatchProvider | undefined {
+): Promise<CargoWatchProvider | undefined> {
     let cargoExists = false;
-    const cargoTomlFile = path.join(vscode.workspace.rootPath!, 'Cargo.toml');
+
     // Check if the working directory is valid cargo root path
-    try {
-        if (fs.existsSync(cargoTomlFile)) {
-            cargoExists = true;
-        }
-    } catch (err) {
-        cargoExists = false;
+    const cargoTomlPath = path.join(vscode.workspace.rootPath!, 'Cargo.toml');
+    const cargoTomlUri = vscode.Uri.file(cargoTomlPath);
+    const cargoTomlFileInfo = await vscode.workspace.fs.stat(cargoTomlUri);
+
+    if (cargoTomlFileInfo) {
+        cargoExists = true;
     }
 
     if (!cargoExists) {
         vscode.window.showErrorMessage(
-            `Couldn\'t find \'Cargo.toml\' in ${cargoTomlFile}`
+            `Couldn\'t find \'Cargo.toml\' at ${cargoTomlPath}`
         );
         return;
     }
@@ -94,10 +93,15 @@ export class CargoWatchProvider implements vscode.Disposable {
             args = '"' + args + '"';
         }
 
+        const ignoreFlags = Server.config.cargoWatchOptions.ignore.reduce(
+            (flags, pattern) => [...flags, '--ignore', pattern],
+            [] as string[]
+        );
+
         // Start the cargo watch with json message
         this.cargoProcess = child_process.spawn(
             'cargo',
-            ['watch', '-x', args],
+            ['watch', '-x', args, ...ignoreFlags],
             {
                 stdio: ['ignore', 'pipe', 'pipe'],
                 cwd: vscode.workspace.rootPath,

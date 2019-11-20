@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use ra_parser::{Token, TokenSource};
 use ra_syntax::{classify_literal, SmolStr, SyntaxKind, SyntaxKind::*, T};
 use std::cell::{Cell, Ref, RefCell};
@@ -148,15 +150,7 @@ fn convert_ident(ident: &tt::Ident) -> TtToken {
 }
 
 fn convert_punct(p: tt::Punct) -> TtToken {
-    let kind = match p.char {
-        // lexer may produce compound tokens for these ones
-        '.' => T![.],
-        ':' => T![:],
-        '=' => T![=],
-        '!' => T![!],
-        '-' => T![-],
-        c => SyntaxKind::from_char(c).unwrap(),
-    };
+    let kind = SyntaxKind::from_char(p.char).unwrap();
     let text = {
         let mut buf = [0u8; 4];
         let s: &str = p.char.encode_utf8(&mut buf);

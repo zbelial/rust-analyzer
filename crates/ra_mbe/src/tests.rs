@@ -1,6 +1,56 @@
-use ra_syntax::{ast, AstNode, NodeOrToken};
+use ra_parser::FragmentKind;
+use ra_syntax::{ast, AstNode, NodeOrToken, WalkEvent};
+use test_utils::assert_eq_text;
 
 use super::*;
+
+mod rule_parsing {
+    use ra_syntax::{ast, AstNode};
+
+    use super::*;
+    use crate::ast_to_token_tree;
+
+    #[test]
+    fn test_valid_arms() {
+        fn check(macro_body: &str) {
+            let m = parse_macro_arm(macro_body);
+            m.unwrap();
+        }
+
+        check("($i:ident) => ()");
+        check("($($i:ident)*) => ($_)");
+        check("($($true:ident)*) => ($true)");
+        check("($($false:ident)*) => ($false)");
+    }
+
+    #[test]
+    fn test_invalid_arms() {
+        fn check(macro_body: &str, err: &str) {
+            let m = parse_macro_arm(macro_body);
+            assert_eq!(m, Err(ParseError::Expected(String::from(err))));
+        }
+
+        check("invalid", "expected subtree");
+
+        check("$i:ident => ()", "expected subtree");
+        check("($i:ident) ()", "expected `=`");
+        check("($($i:ident)_) => ()", "invalid repeat");
+
+        check("($i) => ($i)", "invalid macro definition");
+        check("($i:) => ($i)", "invalid macro definition");
+    }
+
+    fn parse_macro_arm(arm_definition: &str) -> Result<crate::MacroRules, ParseError> {
+        let macro_definition = format!(" macro_rules! m {{ {} }} ", arm_definition);
+        let source_file = ast::SourceFile::parse(&macro_definition).ok().unwrap();
+        let macro_definition =
+            source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
+
+        let (definition_tt, _) =
+            ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
+        crate::MacroRules::parse(&definition_tt)
+    }
+}
 
 // Good first issue (although a slightly challenging one):
 //
@@ -8,6 +58,33 @@ use super::*;
 //   https://github.com/intellij-rust/intellij-rust/blob/c4e9feee4ad46e7953b1948c112533360b6087bb/src/test/kotlin/org/rust/lang/core/macros/RsMacroExpansionTest.kt
 // * Port the test to rust and add it to this module
 // * Make it pass :-)
+
+#[test]
+fn test_token_id_shift() {
+    let macro_definition = r#"
+macro_rules! foobar {
+    ($e:ident) => { foo bar $e }
+}
+"#;
+    let rules = create_rules(macro_definition);
+    let expansion = expand(&rules, "foobar!(baz);");
+
+    fn get_id(t: &tt::TokenTree) -> Option<u32> {
+        if let tt::TokenTree::Leaf(tt::Leaf::Ident(ident)) = t {
+            return Some(ident.id.0);
+        }
+        None
+    }
+
+    assert_eq!(expansion.token_trees.len(), 3);
+    // ($e:ident) => { foo bar $e }
+    //   0 1            2   3   4
+    assert_eq!(get_id(&expansion.token_trees[0]), Some(2));
+    assert_eq!(get_id(&expansion.token_trees[1]), Some(3));
+
+    // So baz should be 5
+    assert_eq!(get_id(&expansion.token_trees[2]), Some(5));
+}
 
 #[test]
 fn test_convert_tt() {
@@ -29,18 +106,8 @@ macro_rules! impl_froms {
 impl_froms!(TokenTree: Leaf, Subtree);
 "#;
 
-    let source_file = ast::SourceFile::parse(macro_definition).ok().unwrap();
-    let macro_definition =
-        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
-
-    let source_file = ast::SourceFile::parse(macro_invocation).ok().unwrap();
-    let macro_invocation =
-        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
-
-    let (definition_tt, _) = ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
-    let (invocation_tt, _) = ast_to_token_tree(&macro_invocation.token_tree().unwrap()).unwrap();
-    let rules = crate::MacroRules::parse(&definition_tt).unwrap();
-    let expansion = rules.expand(&invocation_tt).unwrap();
+    let rules = create_rules(macro_definition);
+    let expansion = expand(&rules, macro_invocation);
     assert_eq!(
         expansion.to_string(),
         "impl From <Leaf > for TokenTree {fn from (it : Leaf) -> TokenTree {TokenTree ::Leaf (it)}} \
@@ -48,141 +115,48 @@ impl_froms!(TokenTree: Leaf, Subtree);
     )
 }
 
-pub(crate) fn create_rules(macro_definition: &str) -> MacroRules {
-    let source_file = ast::SourceFile::parse(macro_definition).ok().unwrap();
-    let macro_definition =
-        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
-
-    let (definition_tt, _) = ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
-    crate::MacroRules::parse(&definition_tt).unwrap()
-}
-
-pub(crate) fn expand(rules: &MacroRules, invocation: &str) -> tt::Subtree {
-    let source_file = ast::SourceFile::parse(invocation).ok().unwrap();
-    let macro_invocation =
-        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
-
-    let (invocation_tt, _) = ast_to_token_tree(&macro_invocation.token_tree().unwrap()).unwrap();
-
-    rules.expand(&invocation_tt).unwrap()
-}
-
-pub(crate) fn expand_to_items(rules: &MacroRules, invocation: &str) -> ast::MacroItems {
-    let expanded = expand(rules, invocation);
-    token_tree_to_macro_items(&expanded).unwrap().tree()
-}
-
-#[allow(unused)]
-pub(crate) fn expand_to_stmts(rules: &MacroRules, invocation: &str) -> ast::MacroStmts {
-    let expanded = expand(rules, invocation);
-    token_tree_to_macro_stmts(&expanded).unwrap().tree()
-}
-
-pub(crate) fn expand_to_expr(rules: &MacroRules, invocation: &str) -> ast::Expr {
-    let expanded = expand(rules, invocation);
-    token_tree_to_expr(&expanded).unwrap().tree()
-}
-
-pub(crate) fn text_to_tokentree(text: &str) -> tt::Subtree {
-    // wrap the given text to a macro call
-    let wrapped = format!("wrap_macro!( {} )", text);
-    let wrapped = ast::SourceFile::parse(&wrapped);
-    let wrapped = wrapped.tree().syntax().descendants().find_map(ast::TokenTree::cast).unwrap();
-    let mut wrapped = ast_to_token_tree(&wrapped).unwrap().0;
-    wrapped.delimiter = tt::Delimiter::None;
-
-    wrapped
-}
-
-pub(crate) enum MacroKind {
-    Items,
-    Stmts,
-}
-
-use ra_syntax::WalkEvent;
-
-pub fn debug_dump_ignore_spaces(node: &ra_syntax::SyntaxNode) -> String {
-    use std::fmt::Write;
-
-    let mut level = 0;
-    let mut buf = String::new();
-    macro_rules! indent {
-        () => {
-            for _ in 0..level {
-                buf.push_str("  ");
+#[test]
+fn test_expr_order() {
+    let rules = create_rules(
+        r#"
+        macro_rules! foo {
+            ($ i:expr) => {
+                 fn bar() { $ i * 2; }
             }
-        };
-    }
-
-    for event in node.preorder_with_tokens() {
-        match event {
-            WalkEvent::Enter(element) => {
-                match element {
-                    NodeOrToken::Node(node) => {
-                        indent!();
-                        writeln!(buf, "{:?}", node.kind()).unwrap();
-                    }
-                    NodeOrToken::Token(token) => match token.kind() {
-                        ra_syntax::SyntaxKind::WHITESPACE => {}
-                        _ => {
-                            indent!();
-                            writeln!(buf, "{:?}", token.kind()).unwrap();
-                        }
-                    },
-                }
-                level += 1;
-            }
-            WalkEvent::Leave(_) => level -= 1,
         }
-    }
-
-    buf
-}
-
-pub(crate) fn assert_expansion(
-    kind: MacroKind,
-    rules: &MacroRules,
-    invocation: &str,
-    expected: &str,
-) -> tt::Subtree {
-    let expanded = expand(rules, invocation);
-    assert_eq!(expanded.to_string(), expected);
-
-    let expected = expected.replace("$crate", "C_C__C");
-
-    // wrap the given text to a macro call
-    let expected = text_to_tokentree(&expected);
-
-    let (expanded_tree, expected_tree) = match kind {
-        MacroKind::Items => {
-            let expanded_tree = token_tree_to_macro_items(&expanded).unwrap().tree();
-            let expected_tree = token_tree_to_macro_items(&expected).unwrap().tree();
-
-            (
-                debug_dump_ignore_spaces(expanded_tree.syntax()).trim().to_string(),
-                debug_dump_ignore_spaces(expected_tree.syntax()).trim().to_string(),
-            )
-        }
-
-        MacroKind::Stmts => {
-            let expanded_tree = token_tree_to_macro_stmts(&expanded).unwrap().tree();
-            let expected_tree = token_tree_to_macro_stmts(&expected).unwrap().tree();
-
-            (
-                debug_dump_ignore_spaces(expanded_tree.syntax()).trim().to_string(),
-                debug_dump_ignore_spaces(expected_tree.syntax()).trim().to_string(),
-            )
-        }
-    };
-
-    let expected_tree = expected_tree.replace("C_C__C", "$crate");
-    assert_eq!(
-        expanded_tree, expected_tree,
-        "left => {}\nright => {}",
-        expanded_tree, expected_tree,
+"#,
     );
+    let expanded = expand(&rules, "foo! { 1 + 1}");
+    let tree = token_tree_to_syntax_node(&expanded, FragmentKind::Items).unwrap().0.syntax_node();
 
-    expanded
+    let dump = format!("{:#?}", tree);
+    assert_eq_text!(
+        dump.trim(),
+        r#"MACRO_ITEMS@[0; 15)
+  FN_DEF@[0; 15)
+    FN_KW@[0; 2) "fn"
+    NAME@[2; 5)
+      IDENT@[2; 5) "bar"
+    PARAM_LIST@[5; 7)
+      L_PAREN@[5; 6) "("
+      R_PAREN@[6; 7) ")"
+    BLOCK_EXPR@[7; 15)
+      BLOCK@[7; 15)
+        L_CURLY@[7; 8) "{"
+        EXPR_STMT@[8; 14)
+          BIN_EXPR@[8; 13)
+            BIN_EXPR@[8; 11)
+              LITERAL@[8; 9)
+                INT_NUMBER@[8; 9) "1"
+              PLUS@[9; 10) "+"
+              LITERAL@[10; 11)
+                INT_NUMBER@[10; 11) "1"
+            STAR@[11; 12) "*"
+            LITERAL@[12; 13)
+              INT_NUMBER@[12; 13) "2"
+          SEMI@[13; 14) ";"
+        R_CURLY@[14; 15) "}""#,
+    );
 }
 
 #[test]
@@ -410,18 +384,18 @@ fn test_expand_to_item_list() {
             ",
     );
     let expansion = expand(&rules, "structs!(Foo, Bar);");
-    let tree = token_tree_to_macro_items(&expansion).unwrap().tree();
+    let tree = token_tree_to_syntax_node(&expansion, FragmentKind::Items).unwrap().0.syntax_node();
     assert_eq!(
-        format!("{:#?}", tree.syntax()).trim(),
+        format!("{:#?}", tree).trim(),
         r#"
 MACRO_ITEMS@[0; 40)
   STRUCT_DEF@[0; 20)
     STRUCT_KW@[0; 6) "struct"
     NAME@[6; 9)
       IDENT@[6; 9) "Foo"
-    NAMED_FIELD_DEF_LIST@[9; 20)
+    RECORD_FIELD_DEF_LIST@[9; 20)
       L_CURLY@[9; 10) "{"
-      NAMED_FIELD_DEF@[10; 19)
+      RECORD_FIELD_DEF@[10; 19)
         NAME@[10; 15)
           IDENT@[10; 15) "field"
         COLON@[15; 16) ":"
@@ -435,9 +409,9 @@ MACRO_ITEMS@[0; 40)
     STRUCT_KW@[20; 26) "struct"
     NAME@[26; 29)
       IDENT@[26; 29) "Bar"
-    NAMED_FIELD_DEF_LIST@[29; 40)
+    RECORD_FIELD_DEF_LIST@[29; 40)
       L_CURLY@[29; 30) "{"
-      NAMED_FIELD_DEF@[30; 39)
+      RECORD_FIELD_DEF@[30; 39)
         NAME@[30; 35)
           IDENT@[30; 35) "field"
         COLON@[35; 36) ":"
@@ -528,10 +502,11 @@ fn test_tt_to_stmts() {
     );
 
     let expanded = expand(&rules, "foo!{}");
-    let stmts = token_tree_to_macro_stmts(&expanded).unwrap().tree();
+    let stmts =
+        token_tree_to_syntax_node(&expanded, FragmentKind::Statements).unwrap().0.syntax_node();
 
     assert_eq!(
-        format!("{:#?}", stmts.syntax()).trim(),
+        format!("{:#?}", stmts).trim(),
         r#"MACRO_STMTS@[0; 15)
   LET_STMT@[0; 7)
     LET_KW@[0; 3) "let"
@@ -653,46 +628,6 @@ fn test_expr() {
         &rules,
         "foo! { 2 + 2 * baz(3).quux() }",
         "fn bar () {2 + 2 * baz (3) . quux () ;}",
-    );
-}
-
-#[test]
-fn test_expr_order() {
-    let rules = create_rules(
-        r#"
-        macro_rules! foo {
-            ($ i:expr) => {
-                 fn bar() { $ i * 2; }
-            }
-        }
-"#,
-    );
-
-    assert_eq!(
-        format!("{:#?}", expand_to_items(&rules, "foo! { 1 + 1  }").syntax()).trim(),
-        r#"MACRO_ITEMS@[0; 15)
-  FN_DEF@[0; 15)
-    FN_KW@[0; 2) "fn"
-    NAME@[2; 5)
-      IDENT@[2; 5) "bar"
-    PARAM_LIST@[5; 7)
-      L_PAREN@[5; 6) "("
-      R_PAREN@[6; 7) ")"
-    BLOCK@[7; 15)
-      L_CURLY@[7; 8) "{"
-      EXPR_STMT@[8; 14)
-        BIN_EXPR@[8; 13)
-          BIN_EXPR@[8; 11)
-            LITERAL@[8; 9)
-              INT_NUMBER@[8; 9) "1"
-            PLUS@[9; 10) "+"
-            LITERAL@[10; 11)
-              INT_NUMBER@[10; 11) "1"
-          STAR@[11; 12) "*"
-          LITERAL@[12; 13)
-            INT_NUMBER@[12; 13) "2"
-        SEMI@[13; 14) ";"
-      R_CURLY@[14; 15) "}""#,
     );
 }
 
@@ -821,7 +756,10 @@ fn test_all_items() {
         }
 "#,
     );
-    assert_expansion(MacroKind::Items, &rules, r#"
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"
         foo! {
             extern crate a;
             mod b;
@@ -837,7 +775,9 @@ fn test_all_items() {
             extern {}
             type T = u8;
         }
-"#, r#"extern crate a ; mod b ; mod c {} use d ; const E : i32 = 0 ; static F : i32 = 0 ; impl G {} struct H ; enum I {Foo} trait J {} fn h () {} extern {} type T = u8 ;"#);
+"#,
+        r#"extern crate a ; mod b ; mod c {} use d ; const E : i32 = 0 ; static F : i32 = 0 ; impl G {} struct H ; enum I {Foo} trait J {} fn h () {} extern {} type T = u8 ;"#,
+    );
 }
 
 #[test]
@@ -1012,8 +952,11 @@ fn test_vec() {
         r#"{let mut v = Vec :: new () ; v . push (1u32) ; v . push (2) ; v}"#,
     );
 
+    let expansion = expand(&rules, r#"vec![1u32,2];"#);
+    let tree = token_tree_to_syntax_node(&expansion, FragmentKind::Expr).unwrap().0.syntax_node();
+
     assert_eq!(
-        format!("{:#?}", expand_to_expr(&rules, r#"vec![1u32,2];"#).syntax()).trim(),
+        format!("{:#?}", tree).trim(),
         r#"BLOCK_EXPR@[0; 45)
   BLOCK@[0; 45)
     L_CURLY@[0; 1) "{"
@@ -1152,8 +1095,12 @@ macro_rules! generate_pattern_iterators {
 "#,
     );
 
-    assert_expansion(MacroKind::Items, &rules, r#"generate_pattern_iterators ! ( double ended ; with # [ stable ( feature = "rust1" , since = "1.0.0" ) ] , Split , RSplit , & 'a str );"#,
-        "fn foo () {}");
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"generate_pattern_iterators ! ( double ended ; with # [ stable ( feature = "rust1" , since = "1.0.0" ) ] , Split , RSplit , & 'a str );"#,
+        "fn foo () {}",
+    );
 }
 
 #[test]
@@ -1235,8 +1182,12 @@ fn test_impl_nonzero_fmt() {
 "#,
     );
 
-    assert_expansion(MacroKind::Items, &rules, r#"impl_nonzero_fmt! { # [stable(feature= "nonzero",since="1.28.0")] (Debug,Display,Binary,Octal,LowerHex,UpperHex) for NonZeroU8}"#,
-        "fn foo () {}");
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"impl_nonzero_fmt! { # [stable(feature= "nonzero",since="1.28.0")] (Debug,Display,Binary,Octal,LowerHex,UpperHex) for NonZeroU8}"#,
+        "fn foo () {}",
+    );
 }
 
 #[test]
@@ -1253,8 +1204,12 @@ fn test_cfg_if_items() {
 "#,
     );
 
-    assert_expansion(MacroKind::Items, &rules, r#"__cfg_if_items ! { ( rustdoc , ) ; ( ( ) ( # [ cfg ( any ( target_os = "redox" , unix ) ) ] # [ stable ( feature = "rust1" , since = "1.0.0" ) ] pub use sys :: ext as unix ; # [ cfg ( windows ) ] # [ stable ( feature = "rust1" , since = "1.0.0" ) ] pub use sys :: ext as windows ; # [ cfg ( any ( target_os = "linux" , target_os = "l4re" ) ) ] pub mod linux ; ) ) , }"#,
-        "__cfg_if_items ! {(rustdoc ,) ;}");
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"__cfg_if_items ! { ( rustdoc , ) ; ( ( ) ( # [ cfg ( any ( target_os = "redox" , unix ) ) ] # [ stable ( feature = "rust1" , since = "1.0.0" ) ] pub use sys :: ext as unix ; # [ cfg ( windows ) ] # [ stable ( feature = "rust1" , since = "1.0.0" ) ] pub use sys :: ext as windows ; # [ cfg ( any ( target_os = "linux" , target_os = "l4re" ) ) ] pub mod linux ; ) ) , }"#,
+        "__cfg_if_items ! {(rustdoc ,) ;}",
+    );
 }
 
 #[test]
@@ -1297,10 +1252,13 @@ cfg_if !   {
 "#,
         "__cfg_if_items ! {() ; ((target_env = \"msvc\") ()) , ((all (target_arch = \"wasm32\" , not (target_os = \"emscripten\"))) ()) , (() (mod libunwind ; pub use libunwind :: * ;)) ,}");
 
-    assert_expansion(MacroKind::Items, &rules, r#"
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"
 cfg_if ! { @ __apply cfg ( all ( not ( any ( not ( any ( target_os = "solaris" , target_os = "illumos" ) ) ) ) ) ) , }
 "#,
-        ""
+        "",
     );
 }
 
@@ -1355,10 +1313,13 @@ macro_rules! RIDL {
 }"#,
     );
 
-    let expanded = expand(&rules, r#"
+    let expanded = expand(
+        &rules,
+        r#"
 RIDL!{interface ID3D11Asynchronous(ID3D11AsynchronousVtbl): ID3D11DeviceChild(ID3D11DeviceChildVtbl) {
     fn GetDataSize(&mut self) -> UINT
-}}"#);
+}}"#,
+    );
     assert_eq!(expanded.to_string(), "impl ID3D11Asynchronous {pub unsafe fn GetDataSize (& mut self) -> UINT {((* self . lpVtbl) .GetDataSize) (self)}}");
 }
 
@@ -1404,7 +1365,8 @@ quick_error ! (SORT [enum Wrapped # [derive (Debug)]] items [
 
 #[test]
 fn test_empty_repeat_vars_in_empty_repeat_vars() {
-    let rules = create_rules(r#"
+    let rules = create_rules(
+        r#"
 macro_rules! delegate_impl {
     ([$self_type:ident, $self_wrap:ty, $self_map:ident]
      pub trait $name:ident $(: $sup:ident)* $(+ $more_sup:ident)* {
@@ -1449,7 +1411,135 @@ macro_rules! delegate_impl {
         }
     }
 }
-"#);
+"#,
+    );
 
-    assert_expansion(MacroKind::Items, &rules, r#"delegate_impl ! {[G , & 'a mut G , deref] pub trait Data : GraphBase {@ section type type NodeWeight ;}}"#, "impl <> Data for & \'a mut G where G : Data {}");
+    assert_expansion(
+        MacroKind::Items,
+        &rules,
+        r#"delegate_impl ! {[G , & 'a mut G , deref] pub trait Data : GraphBase {@ section type type NodeWeight ;}}"#,
+        "impl <> Data for & \'a mut G where G : Data {}",
+    );
+}
+
+pub(crate) fn create_rules(macro_definition: &str) -> MacroRules {
+    let source_file = ast::SourceFile::parse(macro_definition).ok().unwrap();
+    let macro_definition =
+        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
+
+    let (definition_tt, _) = ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
+    crate::MacroRules::parse(&definition_tt).unwrap()
+}
+
+pub(crate) fn expand(rules: &MacroRules, invocation: &str) -> tt::Subtree {
+    let source_file = ast::SourceFile::parse(invocation).ok().unwrap();
+    let macro_invocation =
+        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
+
+    let (invocation_tt, _) = ast_to_token_tree(&macro_invocation.token_tree().unwrap()).unwrap();
+
+    rules.expand(&invocation_tt).unwrap()
+}
+
+pub(crate) enum MacroKind {
+    Items,
+    Stmts,
+}
+
+pub(crate) fn assert_expansion(
+    kind: MacroKind,
+    rules: &MacroRules,
+    invocation: &str,
+    expected: &str,
+) -> tt::Subtree {
+    let expanded = expand(rules, invocation);
+    assert_eq!(expanded.to_string(), expected);
+
+    let expected = expected.replace("$crate", "C_C__C");
+
+    // wrap the given text to a macro call
+    let expected = {
+        let wrapped = format!("wrap_macro!( {} )", expected);
+        let wrapped = ast::SourceFile::parse(&wrapped);
+        let wrapped = wrapped.tree().syntax().descendants().find_map(ast::TokenTree::cast).unwrap();
+        let mut wrapped = ast_to_token_tree(&wrapped).unwrap().0;
+        wrapped.delimiter = tt::Delimiter::None;
+        wrapped
+    };
+    let (expanded_tree, expected_tree) = match kind {
+        MacroKind::Items => {
+            let expanded_tree =
+                token_tree_to_syntax_node(&expanded, FragmentKind::Items).unwrap().0.syntax_node();
+            let expected_tree =
+                token_tree_to_syntax_node(&expected, FragmentKind::Items).unwrap().0.syntax_node();
+
+            (
+                debug_dump_ignore_spaces(&expanded_tree).trim().to_string(),
+                debug_dump_ignore_spaces(&expected_tree).trim().to_string(),
+            )
+        }
+
+        MacroKind::Stmts => {
+            let expanded_tree = token_tree_to_syntax_node(&expanded, FragmentKind::Statements)
+                .unwrap()
+                .0
+                .syntax_node();
+            let expected_tree = token_tree_to_syntax_node(&expected, FragmentKind::Statements)
+                .unwrap()
+                .0
+                .syntax_node();
+
+            (
+                debug_dump_ignore_spaces(&expanded_tree).trim().to_string(),
+                debug_dump_ignore_spaces(&expected_tree).trim().to_string(),
+            )
+        }
+    };
+
+    let expected_tree = expected_tree.replace("C_C__C", "$crate");
+    assert_eq!(
+        expanded_tree, expected_tree,
+        "\nleft:\n{}\nright:\n{}",
+        expanded_tree, expected_tree,
+    );
+
+    expanded
+}
+
+pub fn debug_dump_ignore_spaces(node: &ra_syntax::SyntaxNode) -> String {
+    use std::fmt::Write;
+
+    let mut level = 0;
+    let mut buf = String::new();
+    macro_rules! indent {
+        () => {
+            for _ in 0..level {
+                buf.push_str("  ");
+            }
+        };
+    }
+
+    for event in node.preorder_with_tokens() {
+        match event {
+            WalkEvent::Enter(element) => {
+                match element {
+                    NodeOrToken::Node(node) => {
+                        indent!();
+                        writeln!(buf, "{:?}", node.kind()).unwrap();
+                    }
+                    NodeOrToken::Token(token) => match token.kind() {
+                        ra_syntax::SyntaxKind::WHITESPACE => {}
+                        _ => {
+                            indent!();
+                            writeln!(buf, "{:?}", token.kind()).unwrap();
+                        }
+                    },
+                }
+                level += 1;
+            }
+            WalkEvent::Leave(_) => level -= 1,
+        }
+    }
+
+    buf
 }

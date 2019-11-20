@@ -1,11 +1,13 @@
+//! FIXME: write short doc here
+
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use ra_syntax::{ast::AttrsOwner, SmolStr};
 
 use crate::{
-    AstDatabase, Crate, DefDatabase, Enum, Function, HasSource, HirDatabase, ImplBlock, Module,
-    ModuleDef, Static, Struct, Trait,
+    db::{AstDatabase, DefDatabase, HirDatabase},
+    Adt, Crate, Enum, Function, HasSource, ImplBlock, Module, ModuleDef, Static, Struct, Trait,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,14 +22,14 @@ pub enum LangItemTarget {
 
 impl LangItemTarget {
     pub(crate) fn krate(&self, db: &impl HirDatabase) -> Option<Crate> {
-        match self {
-            LangItemTarget::Enum(e) => e.module(db).krate(db),
-            LangItemTarget::Function(f) => f.module(db).krate(db),
-            LangItemTarget::ImplBlock(i) => i.module().krate(db),
-            LangItemTarget::Static(s) => s.module(db).krate(db),
-            LangItemTarget::Struct(s) => s.module(db).krate(db),
-            LangItemTarget::Trait(t) => t.module(db).krate(db),
-        }
+        Some(match self {
+            LangItemTarget::Enum(e) => e.module(db).krate(),
+            LangItemTarget::Function(f) => f.module(db).krate(),
+            LangItemTarget::ImplBlock(i) => i.krate(db),
+            LangItemTarget::Static(s) => s.module(db).krate(),
+            LangItemTarget::Struct(s) => s.module(db).krate(),
+            LangItemTarget::Trait(t) => t.module(db).krate(),
+        })
     }
 }
 
@@ -42,7 +44,7 @@ impl LangItems {
     }
 
     /// Salsa query. This will look for lang items in a specific crate.
-    pub(crate) fn lang_items_query(
+    pub(crate) fn crate_lang_items_query(
         db: &(impl DefDatabase + AstDatabase),
         krate: Crate,
     ) -> Arc<LangItems> {
@@ -75,7 +77,7 @@ impl LangItems {
         start_crate: Crate,
         item: SmolStr,
     ) -> Option<LangItemTarget> {
-        let lang_items = db.lang_items(start_crate);
+        let lang_items = db.crate_lang_items(start_crate);
         let start_crate_target = lang_items.items.get(&item);
         if let Some(target) = start_crate_target {
             Some(*target)
@@ -107,8 +109,10 @@ impl LangItems {
                 ModuleDef::Trait(trait_) => {
                     self.collect_lang_item(db, trait_, LangItemTarget::Trait)
                 }
-                ModuleDef::Enum(e) => self.collect_lang_item(db, e, LangItemTarget::Enum),
-                ModuleDef::Struct(s) => self.collect_lang_item(db, s, LangItemTarget::Struct),
+                ModuleDef::Adt(Adt::Enum(e)) => self.collect_lang_item(db, e, LangItemTarget::Enum),
+                ModuleDef::Adt(Adt::Struct(s)) => {
+                    self.collect_lang_item(db, s, LangItemTarget::Struct)
+                }
                 ModuleDef::Function(f) => self.collect_lang_item(db, f, LangItemTarget::Function),
                 ModuleDef::Static(s) => self.collect_lang_item(db, s, LangItemTarget::Static),
                 _ => {}
@@ -149,7 +153,7 @@ impl LangItems {
 
 fn lang_item_name<T: AttrsOwner>(node: &T) -> Option<SmolStr> {
     node.attrs()
-        .filter_map(|a| a.as_key_value())
+        .filter_map(|a| a.as_simple_key_value())
         .filter(|(key, _)| key == "lang")
         .map(|(_, val)| val)
         .nth(0)

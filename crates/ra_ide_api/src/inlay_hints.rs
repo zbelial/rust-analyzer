@@ -1,12 +1,10 @@
+//! FIXME: write short doc here
+
 use crate::{db::RootDatabase, FileId};
 use hir::{HirDisplay, SourceAnalyzer, Ty};
 use ra_syntax::{
-    algo::visit::{visitor, Visitor},
-    ast::{
-        AstNode, ForExpr, IfExpr, LambdaExpr, LetStmt, MatchArmList, Pat, PatKind, SourceFile,
-        TypeAscriptionOwner, WhileExpr,
-    },
-    SmolStr, SyntaxKind, SyntaxNode, TextRange,
+    ast::{self, AstNode, TypeAscriptionOwner},
+    match_ast, SmolStr, SourceFile, SyntaxKind, SyntaxNode, TextRange,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,61 +32,59 @@ fn get_inlay_hints(
     file_id: FileId,
     node: &SyntaxNode,
 ) -> Option<Vec<InlayHint>> {
-    visitor()
-        .visit(|let_statement: LetStmt| {
-            if let_statement.ascribed_type().is_some() {
-                return None;
-            }
-            let pat = let_statement.pat()?;
-            let analyzer = SourceAnalyzer::new(db, file_id, let_statement.syntax(), None);
-            Some(get_pat_type_hints(db, &analyzer, pat, false))
-        })
-        .visit(|closure_parameter: LambdaExpr| {
-            let analyzer = SourceAnalyzer::new(db, file_id, closure_parameter.syntax(), None);
-            closure_parameter.param_list().map(|param_list| {
-                param_list
-                    .params()
-                    .filter(|closure_param| closure_param.ascribed_type().is_none())
-                    .filter_map(|closure_param| closure_param.pat())
-                    .map(|root_pat| get_pat_type_hints(db, &analyzer, root_pat, false))
-                    .flatten()
-                    .collect()
-            })
-        })
-        .visit(|for_expression: ForExpr| {
-            let pat = for_expression.pat()?;
-            let analyzer = SourceAnalyzer::new(db, file_id, for_expression.syntax(), None);
-            Some(get_pat_type_hints(db, &analyzer, pat, false))
-        })
-        .visit(|if_expr: IfExpr| {
-            let pat = if_expr.condition()?.pat()?;
-            let analyzer = SourceAnalyzer::new(db, file_id, if_expr.syntax(), None);
-            Some(get_pat_type_hints(db, &analyzer, pat, true))
-        })
-        .visit(|while_expr: WhileExpr| {
-            let pat = while_expr.condition()?.pat()?;
-            let analyzer = SourceAnalyzer::new(db, file_id, while_expr.syntax(), None);
-            Some(get_pat_type_hints(db, &analyzer, pat, true))
-        })
-        .visit(|match_arm_list: MatchArmList| {
-            let analyzer = SourceAnalyzer::new(db, file_id, match_arm_list.syntax(), None);
-            Some(
-                match_arm_list
-                    .arms()
-                    .map(|match_arm| match_arm.pats())
-                    .flatten()
-                    .map(|root_pat| get_pat_type_hints(db, &analyzer, root_pat, true))
-                    .flatten()
-                    .collect(),
-            )
-        })
-        .accept(&node)?
+    let analyzer = SourceAnalyzer::new(db, hir::Source::new(file_id.into(), node), None);
+    match_ast! {
+        match node {
+            ast::LetStmt(it) => {
+                if it.ascribed_type().is_some() {
+                    return None;
+                }
+                let pat = it.pat()?;
+                Some(get_pat_type_hints(db, &analyzer, pat, false))
+            },
+            ast::LambdaExpr(it) => {
+                it.param_list().map(|param_list| {
+                    param_list
+                        .params()
+                        .filter(|closure_param| closure_param.ascribed_type().is_none())
+                        .filter_map(|closure_param| closure_param.pat())
+                        .map(|root_pat| get_pat_type_hints(db, &analyzer, root_pat, false))
+                        .flatten()
+                        .collect()
+                })
+            },
+            ast::ForExpr(it) => {
+                let pat = it.pat()?;
+                Some(get_pat_type_hints(db, &analyzer, pat, false))
+            },
+            ast::IfExpr(it) => {
+                let pat = it.condition()?.pat()?;
+                Some(get_pat_type_hints(db, &analyzer, pat, true))
+            },
+            ast::WhileExpr(it) => {
+                let pat = it.condition()?.pat()?;
+                Some(get_pat_type_hints(db, &analyzer, pat, true))
+            },
+            ast::MatchArmList(it) => {
+                Some(
+                    it
+                        .arms()
+                        .map(|match_arm| match_arm.pats())
+                        .flatten()
+                        .map(|root_pat| get_pat_type_hints(db, &analyzer, root_pat, true))
+                        .flatten()
+                        .collect(),
+                )
+            },
+            _ => None,
+        }
+    }
 }
 
 fn get_pat_type_hints(
     db: &RootDatabase,
     analyzer: &SourceAnalyzer,
-    root_pat: Pat,
+    root_pat: ast::Pat,
     skip_root_pat_hint: bool,
 ) -> Vec<InlayHint> {
     let original_pat = &root_pat.clone();
@@ -108,43 +104,43 @@ fn get_pat_type_hints(
         .collect()
 }
 
-fn get_leaf_pats(root_pat: Pat) -> Vec<Pat> {
-    let mut pats_to_process = std::collections::VecDeque::<Pat>::new();
+fn get_leaf_pats(root_pat: ast::Pat) -> Vec<ast::Pat> {
+    let mut pats_to_process = std::collections::VecDeque::<ast::Pat>::new();
     pats_to_process.push_back(root_pat);
 
     let mut leaf_pats = Vec::new();
 
     while let Some(maybe_leaf_pat) = pats_to_process.pop_front() {
-        match maybe_leaf_pat.kind() {
-            PatKind::BindPat(bind_pat) => {
+        match &maybe_leaf_pat {
+            ast::Pat::BindPat(bind_pat) => {
                 if let Some(pat) = bind_pat.pat() {
                     pats_to_process.push_back(pat);
                 } else {
                     leaf_pats.push(maybe_leaf_pat);
                 }
             }
-            PatKind::TuplePat(tuple_pat) => {
+            ast::Pat::TuplePat(tuple_pat) => {
                 for arg_pat in tuple_pat.args() {
                     pats_to_process.push_back(arg_pat);
                 }
             }
-            PatKind::StructPat(struct_pat) => {
-                if let Some(pat_list) = struct_pat.field_pat_list() {
+            ast::Pat::RecordPat(record_pat) => {
+                if let Some(pat_list) = record_pat.record_field_pat_list() {
                     pats_to_process.extend(
                         pat_list
-                            .field_pats()
-                            .filter_map(|field_pat| {
-                                field_pat
+                            .record_field_pats()
+                            .filter_map(|record_field_pat| {
+                                record_field_pat
                                     .pat()
                                     .filter(|pat| pat.syntax().kind() != SyntaxKind::BIND_PAT)
                             })
                             .chain(pat_list.bind_pats().map(|bind_pat| {
-                                bind_pat.pat().unwrap_or_else(|| Pat::from(bind_pat))
+                                bind_pat.pat().unwrap_or_else(|| ast::Pat::from(bind_pat))
                             })),
                     );
                 }
             }
-            PatKind::TupleStructPat(tuple_struct_pat) => {
+            ast::Pat::TupleStructPat(tuple_struct_pat) => {
                 for arg_pat in tuple_struct_pat.args() {
                     pats_to_process.push_back(arg_pat);
                 }
@@ -158,7 +154,7 @@ fn get_leaf_pats(root_pat: Pat) -> Vec<Pat> {
 fn get_node_displayable_type(
     db: &RootDatabase,
     analyzer: &SourceAnalyzer,
-    node_pat: &Pat,
+    node_pat: &ast::Pat,
 ) -> Option<Ty> {
     analyzer.type_of_pat(db, node_pat).and_then(|resolved_type| {
         if let Ty::Apply(_) = resolved_type {
@@ -172,7 +168,7 @@ fn get_node_displayable_type(
 #[cfg(test)]
 mod tests {
     use crate::mock_analysis::single_file;
-    use insta::assert_debug_snapshot_matches;
+    use insta::assert_debug_snapshot;
 
     #[test]
     fn let_statement() {
@@ -213,58 +209,60 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r#"[
-    InlayHint {
-        range: [193; 197),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [236; 244),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [275; 279),
-        kind: TypeHint,
-        label: "&str",
-    },
-    InlayHint {
-        range: [539; 543),
-        kind: TypeHint,
-        label: "(i32, char)",
-    },
-    InlayHint {
-        range: [566; 567),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [570; 571),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [573; 574),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [584; 585),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [577; 578),
-        kind: TypeHint,
-        label: "f64",
-    },
-    InlayHint {
-        range: [580; 581),
-        kind: TypeHint,
-        label: "f64",
-    },
-]"#
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [193; 197),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [236; 244),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [275; 279),
+                kind: TypeHint,
+                label: "&str",
+            },
+            InlayHint {
+                range: [539; 543),
+                kind: TypeHint,
+                label: "(i32, char)",
+            },
+            InlayHint {
+                range: [566; 567),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [570; 571),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [573; 574),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [584; 585),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [577; 578),
+                kind: TypeHint,
+                label: "f64",
+            },
+            InlayHint {
+                range: [580; 581),
+                kind: TypeHint,
+                label: "f64",
+            },
+        ]
+        "###
         );
     }
 
@@ -280,18 +278,20 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r#"[
-    InlayHint {
-        range: [21; 30),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [57; 66),
-        kind: TypeHint,
-        label: "i32",
-    },
-]"#
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [21; 30),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [57; 66),
+                kind: TypeHint,
+                label: "i32",
+            },
+        ]
+        "###
         );
     }
 
@@ -307,18 +307,20 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r#"[
-    InlayHint {
-        range: [21; 30),
-        kind: TypeHint,
-        label: "i32",
-    },
-    InlayHint {
-        range: [44; 53),
-        kind: TypeHint,
-        label: "i32",
-    },
-]"#
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [21; 30),
+                kind: TypeHint,
+                label: "i32",
+            },
+            InlayHint {
+                range: [44; 53),
+                kind: TypeHint,
+                label: "i32",
+            },
+        ]
+        "###
         );
     }
 
@@ -353,33 +355,35 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r#"[
-    InlayHint {
-        range: [166; 170),
-        kind: TypeHint,
-        label: "CustomOption<Test>",
-    },
-    InlayHint {
-        range: [334; 338),
-        kind: TypeHint,
-        label: "&Test",
-    },
-    InlayHint {
-        range: [389; 390),
-        kind: TypeHint,
-        label: "&CustomOption<u32>",
-    },
-    InlayHint {
-        range: [392; 393),
-        kind: TypeHint,
-        label: "&u8",
-    },
-    InlayHint {
-        range: [531; 532),
-        kind: TypeHint,
-        label: "&u32",
-    },
-]"#
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [166; 170),
+                kind: TypeHint,
+                label: "CustomOption<Test>",
+            },
+            InlayHint {
+                range: [334; 338),
+                kind: TypeHint,
+                label: "&Test",
+            },
+            InlayHint {
+                range: [389; 390),
+                kind: TypeHint,
+                label: "&CustomOption<u32>",
+            },
+            InlayHint {
+                range: [392; 393),
+                kind: TypeHint,
+                label: "&u8",
+            },
+            InlayHint {
+                range: [531; 532),
+                kind: TypeHint,
+                label: "&u32",
+            },
+        ]
+        "###
         );
     }
 
@@ -414,34 +418,34 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r###"
-       ⋮[
-       ⋮    InlayHint {
-       ⋮        range: [166; 170),
-       ⋮        kind: TypeHint,
-       ⋮        label: "CustomOption<Test>",
-       ⋮    },
-       ⋮    InlayHint {
-       ⋮        range: [343; 347),
-       ⋮        kind: TypeHint,
-       ⋮        label: "&Test",
-       ⋮    },
-       ⋮    InlayHint {
-       ⋮        range: [401; 402),
-       ⋮        kind: TypeHint,
-       ⋮        label: "&CustomOption<u32>",
-       ⋮    },
-       ⋮    InlayHint {
-       ⋮        range: [404; 405),
-       ⋮        kind: TypeHint,
-       ⋮        label: "&u8",
-       ⋮    },
-       ⋮    InlayHint {
-       ⋮        range: [549; 550),
-       ⋮        kind: TypeHint,
-       ⋮        label: "&u32",
-       ⋮    },
-       ⋮]
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [166; 170),
+                kind: TypeHint,
+                label: "CustomOption<Test>",
+            },
+            InlayHint {
+                range: [343; 347),
+                kind: TypeHint,
+                label: "&Test",
+            },
+            InlayHint {
+                range: [401; 402),
+                kind: TypeHint,
+                label: "&CustomOption<u32>",
+            },
+            InlayHint {
+                range: [404; 405),
+                kind: TypeHint,
+                label: "&u8",
+            },
+            InlayHint {
+                range: [549; 550),
+                kind: TypeHint,
+                label: "&u32",
+            },
+        ]
         "###
         );
     }
@@ -477,28 +481,30 @@ fn main() {
 }"#,
         );
 
-        assert_debug_snapshot_matches!(analysis.inlay_hints(file_id).unwrap(), @r#"[
-    InlayHint {
-        range: [311; 315),
-        kind: TypeHint,
-        label: "Test",
-    },
-    InlayHint {
-        range: [358; 359),
-        kind: TypeHint,
-        label: "CustomOption<u32>",
-    },
-    InlayHint {
-        range: [361; 362),
-        kind: TypeHint,
-        label: "u8",
-    },
-    InlayHint {
-        range: [484; 485),
-        kind: TypeHint,
-        label: "u32",
-    },
-]"#
+        assert_debug_snapshot!(analysis.inlay_hints(file_id).unwrap(), @r###"
+        [
+            InlayHint {
+                range: [311; 315),
+                kind: TypeHint,
+                label: "Test",
+            },
+            InlayHint {
+                range: [358; 359),
+                kind: TypeHint,
+                label: "CustomOption<u32>",
+            },
+            InlayHint {
+                range: [361; 362),
+                kind: TypeHint,
+                label: "u8",
+            },
+            InlayHint {
+                range: [484; 485),
+                kind: TypeHint,
+                label: "u32",
+            },
+        ]
+        "###
         );
     }
 }

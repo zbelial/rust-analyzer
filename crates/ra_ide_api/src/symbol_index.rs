@@ -29,15 +29,15 @@ use std::{
 use fst::{self, Streamer};
 use ra_db::{
     salsa::{self, ParallelDatabase},
-    SourceDatabase, SourceRootId,
+    SourceDatabaseExt, SourceRootId,
 };
 use ra_syntax::{
-    algo::visit::{visitor, Visitor},
     ast::{self, NameOwner},
-    AstNode, Parse, SmolStr, SourceFile,
+    match_ast, AstNode, Parse, SmolStr, SourceFile,
     SyntaxKind::{self, *},
     SyntaxNode, SyntaxNodePtr, TextRange, WalkEvent,
 };
+#[cfg(not(feature = "wasm"))]
 use rayon::prelude::*;
 
 use crate::{db::RootDatabase, FileId, Query};
@@ -79,19 +79,33 @@ pub(crate) fn world_symbols(db: &RootDatabase, query: Query) -> Vec<FileSymbol> 
 
     let buf: Vec<Arc<SymbolIndex>> = if query.libs {
         let snap = Snap(db.snapshot());
-        db.library_roots()
+        #[cfg(not(feature = "wasm"))]
+        let buf = db
+            .library_roots()
             .par_iter()
             .map_with(snap, |db, &lib_id| db.0.library_symbols(lib_id))
-            .collect()
+            .collect();
+
+        #[cfg(feature = "wasm")]
+        let buf = db.library_roots().iter().map(|&lib_id| snap.0.library_symbols(lib_id)).collect();
+
+        buf
     } else {
         let mut files = Vec::new();
         for &root in db.local_roots().iter() {
             let sr = db.source_root(root);
-            files.extend(sr.files.values().copied())
+            files.extend(sr.walk())
         }
 
         let snap = Snap(db.snapshot());
-        files.par_iter().map_with(snap, |db, &file_id| db.0.file_symbols(file_id)).collect()
+        #[cfg(not(feature = "wasm"))]
+        let buf =
+            files.par_iter().map_with(snap, |db, &file_id| db.0.file_symbols(file_id)).collect();
+
+        #[cfg(feature = "wasm")]
+        let buf = files.iter().map(|&file_id| snap.0.file_symbols(file_id)).collect();
+
+        buf
     };
     query.search(&buf)
 }
@@ -135,8 +149,11 @@ impl SymbolIndex {
         fn cmp_key<'a>(s1: &'a FileSymbol) -> impl Ord + 'a {
             unicase::Ascii::new(s1.name.as_str())
         }
-
+        #[cfg(not(feature = "wasm"))]
         symbols.par_sort_by(|s1, s2| cmp_key(s1).cmp(&cmp_key(s2)));
+
+        #[cfg(feature = "wasm")]
+        symbols.sort_by(|s1, s2| cmp_key(s1).cmp(&cmp_key(s2)));
 
         let mut builder = fst::MapBuilder::memory();
 
@@ -169,8 +186,19 @@ impl SymbolIndex {
         self.map.as_fst().size() + self.symbols.len() * mem::size_of::<FileSymbol>()
     }
 
+    #[cfg(not(feature = "wasm"))]
     pub(crate) fn for_files(
         files: impl ParallelIterator<Item = (FileId, Parse<ast::SourceFile>)>,
+    ) -> SymbolIndex {
+        let symbols = files
+            .flat_map(|(file_id, file)| source_file_to_file_symbols(&file.tree(), file_id))
+            .collect::<Vec<_>>();
+        SymbolIndex::new(symbols)
+    }
+
+    #[cfg(feature = "wasm")]
+    pub(crate) fn for_files(
+        files: impl Iterator<Item = (FileId, Parse<ast::SourceFile>)>,
     ) -> SymbolIndex {
         let symbols = files
             .flat_map(|(file_id, file)| source_file_to_file_symbols(&file.tree(), file_id))
@@ -277,16 +305,19 @@ fn to_symbol(node: &SyntaxNode) -> Option<(SmolStr, SyntaxNodePtr, TextRange)> {
 
         Some((name, ptr, name_range))
     }
-    visitor()
-        .visit(decl::<ast::FnDef>)
-        .visit(decl::<ast::StructDef>)
-        .visit(decl::<ast::EnumDef>)
-        .visit(decl::<ast::TraitDef>)
-        .visit(decl::<ast::Module>)
-        .visit(decl::<ast::TypeAliasDef>)
-        .visit(decl::<ast::ConstDef>)
-        .visit(decl::<ast::StaticDef>)
-        .accept(node)?
+    match_ast! {
+        match node {
+            ast::FnDef(it) => { decl(it) },
+            ast::StructDef(it) => { decl(it) },
+            ast::EnumDef(it) => { decl(it) },
+            ast::TraitDef(it) => { decl(it) },
+            ast::Module(it) => { decl(it) },
+            ast::TypeAliasDef(it) => { decl(it) },
+            ast::ConstDef(it) => { decl(it) },
+            ast::StaticDef(it) => { decl(it) },
+            _ => None,
+        }
+    }
 }
 
 fn to_file_symbol(node: &SyntaxNode, file_id: FileId) -> Option<FileSymbol> {

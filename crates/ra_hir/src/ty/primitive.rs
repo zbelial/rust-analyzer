@@ -1,65 +1,41 @@
+//! FIXME: write short doc here
+
 use std::fmt;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum Signedness {
-    Signed,
-    Unsigned,
-}
+pub use hir_def::builtin_type::{FloatBitness, IntBitness, Signedness};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum IntBitness {
-    Xsize,
-    X8,
-    X16,
-    X32,
-    X64,
-    X128,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum FloatBitness {
-    X32,
-    X64,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum UncertainIntTy {
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+pub enum Uncertain<T> {
     Unknown,
-    Known(IntTy),
+    Known(T),
 }
 
-impl From<IntTy> for UncertainIntTy {
+impl From<IntTy> for Uncertain<IntTy> {
     fn from(ty: IntTy) -> Self {
-        UncertainIntTy::Known(ty)
+        Uncertain::Known(ty)
     }
 }
 
-impl fmt::Display for UncertainIntTy {
+impl fmt::Display for Uncertain<IntTy> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UncertainIntTy::Unknown => write!(f, "{{integer}}"),
-            UncertainIntTy::Known(ty) => write!(f, "{}", ty),
+            Uncertain::Unknown => write!(f, "{{integer}}"),
+            Uncertain::Known(ty) => write!(f, "{}", ty),
         }
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum UncertainFloatTy {
-    Unknown,
-    Known(FloatTy),
-}
-
-impl From<FloatTy> for UncertainFloatTy {
+impl From<FloatTy> for Uncertain<FloatTy> {
     fn from(ty: FloatTy) -> Self {
-        UncertainFloatTy::Known(ty)
+        Uncertain::Known(ty)
     }
 }
 
-impl fmt::Display for UncertainFloatTy {
+impl fmt::Display for Uncertain<FloatTy> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UncertainFloatTy::Unknown => write!(f, "{{float}}"),
-            UncertainFloatTy::Known(ty) => write!(f, "{}", ty),
+            Uncertain::Unknown => write!(f, "{{float}}"),
+            Uncertain::Known(ty) => write!(f, "{}", ty),
         }
     }
 }
@@ -147,24 +123,6 @@ impl IntTy {
             (Signedness::Unsigned, IntBitness::X128) => "u128",
         }
     }
-
-    pub(crate) fn from_suffix(suffix: &str) -> Option<IntTy> {
-        match suffix {
-            "isize" => Some(IntTy::isize()),
-            "i8" => Some(IntTy::i8()),
-            "i16" => Some(IntTy::i16()),
-            "i32" => Some(IntTy::i32()),
-            "i64" => Some(IntTy::i64()),
-            "i128" => Some(IntTy::i128()),
-            "usize" => Some(IntTy::usize()),
-            "u8" => Some(IntTy::u8()),
-            "u16" => Some(IntTy::u16()),
-            "u32" => Some(IntTy::u32()),
-            "u64" => Some(IntTy::u64()),
-            "u128" => Some(IntTy::u128()),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -197,14 +155,6 @@ impl FloatTy {
         match self.bitness {
             FloatBitness::X32 => "f32",
             FloatBitness::X64 => "f64",
-        }
-    }
-
-    pub(crate) fn from_suffix(suffix: &str) -> Option<FloatTy> {
-        match suffix {
-            "f32" => Some(FloatTy::f32()),
-            "f64" => Some(FloatTy::f64()),
-            _ => None,
         }
     }
 }

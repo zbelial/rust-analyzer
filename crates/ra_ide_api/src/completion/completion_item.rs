@@ -1,8 +1,10 @@
+//! FIXME: write short doc here
+
 use std::fmt;
 
 use hir::Documentation;
 use ra_syntax::TextRange;
-use ra_text_edit::{TextEdit, TextEditBuilder};
+use ra_text_edit::TextEdit;
 
 /// `CompletionItem` describes a single completion variant in the editor pop-up.
 /// It is basically a POD with various properties. To construct a
@@ -42,6 +44,9 @@ pub struct CompletionItem {
     /// Additional info to show in the UI pop up.
     detail: Option<String>,
     documentation: Option<Documentation>,
+
+    /// Whether this item is marked as deprecated
+    deprecated: bool,
 }
 
 // We use custom debug for CompletionItem to make `insta`'s diffs more readable.
@@ -67,6 +72,9 @@ impl fmt::Debug for CompletionItem {
         }
         if let Some(documentation) = self.documentation() {
             s.field("documentation", &documentation);
+        }
+        if self.deprecated {
+            s.field("deprecated", &true);
         }
         s.finish()
     }
@@ -130,6 +138,7 @@ impl CompletionItem {
             lookup: None,
             kind: None,
             text_edit: None,
+            deprecated: None,
         }
     }
     /// What user sees in pop-up in the UI.
@@ -164,6 +173,10 @@ impl CompletionItem {
     pub fn kind(&self) -> Option<CompletionItemKind> {
         self.kind
     }
+
+    pub fn deprecated(&self) -> bool {
+        self.deprecated
+    }
 }
 
 /// A helper to make `CompletionItem`s.
@@ -179,6 +192,7 @@ pub(crate) struct Builder {
     lookup: Option<String>,
     kind: Option<CompletionItemKind>,
     text_edit: Option<TextEdit>,
+    deprecated: Option<bool>,
 }
 
 impl Builder {
@@ -190,12 +204,10 @@ impl Builder {
         let label = self.label;
         let text_edit = match self.text_edit {
             Some(it) => it,
-            None => {
-                let mut builder = TextEditBuilder::default();
-                builder
-                    .replace(self.source_range, self.insert_text.unwrap_or_else(|| label.clone()));
-                builder.finish()
-            }
+            None => TextEdit::replace(
+                self.source_range,
+                self.insert_text.unwrap_or_else(|| label.clone()),
+            ),
         };
 
         CompletionItem {
@@ -208,10 +220,15 @@ impl Builder {
             lookup: self.lookup,
             kind: self.kind,
             completion_kind: self.completion_kind,
+            deprecated: self.deprecated.unwrap_or(false),
         }
     }
     pub(crate) fn lookup_by(mut self, lookup: impl Into<String>) -> Builder {
         self.lookup = Some(lookup.into());
+        self
+    }
+    pub(crate) fn label(mut self, label: impl Into<String>) -> Builder {
+        self.label = label.into();
         self
     }
     pub(crate) fn insert_text(mut self, insert_text: impl Into<String>) -> Builder {
@@ -248,6 +265,10 @@ impl Builder {
     }
     pub(crate) fn set_documentation(mut self, docs: Option<Documentation>) -> Builder {
         self.documentation = docs.map(Into::into);
+        self
+    }
+    pub(crate) fn set_deprecated(mut self, deprecated: bool) -> Builder {
+        self.deprecated = Some(deprecated);
         self
     }
 }

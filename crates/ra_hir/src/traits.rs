@@ -1,19 +1,22 @@
 //! HIR for trait definitions.
 
-use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
+use hir_expand::name::AsName;
+
 use ra_syntax::ast::{self, NameOwner};
+use rustc_hash::FxHashMap;
 
 use crate::{
-    ids::LocationCtx, name::AsName, AstDatabase, Const, DefDatabase, Function, HasSource, Module,
-    Name, Trait, TypeAlias,
+    db::{AstDatabase, DefDatabase},
+    ids::LocationCtx,
+    AssocItem, Const, Function, HasSource, Module, Name, Trait, TypeAlias,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitData {
     name: Option<Name>,
-    items: Vec<TraitItem>,
+    items: Vec<AssocItem>,
     auto: bool,
 }
 
@@ -25,15 +28,15 @@ impl TraitData {
         let src = tr.source(db);
         let name = src.ast.name().map(|n| n.as_name());
         let module = tr.module(db);
-        let ctx = LocationCtx::new(db, module, src.file_id);
+        let ctx = LocationCtx::new(db, module.id, src.file_id);
         let auto = src.ast.is_auto();
         let items = if let Some(item_list) = src.ast.item_list() {
             item_list
                 .impl_items()
-                .map(|item_node| match item_node.kind() {
-                    ast::ImplItemKind::FnDef(it) => Function { id: ctx.to_def(&it) }.into(),
-                    ast::ImplItemKind::ConstDef(it) => Const { id: ctx.to_def(&it) }.into(),
-                    ast::ImplItemKind::TypeAliasDef(it) => TypeAlias { id: ctx.to_def(&it) }.into(),
+                .map(|item_node| match item_node {
+                    ast::ImplItem::FnDef(it) => Function { id: ctx.to_def(&it) }.into(),
+                    ast::ImplItem::ConstDef(it) => Const { id: ctx.to_def(&it) }.into(),
+                    ast::ImplItem::TypeAliasDef(it) => TypeAlias { id: ctx.to_def(&it) }.into(),
                 })
                 .collect()
         } else {
@@ -46,7 +49,7 @@ impl TraitData {
         &self.name
     }
 
-    pub(crate) fn items(&self) -> &[TraitItem] {
+    pub(crate) fn items(&self) -> &[AssocItem] {
         &self.items
     }
 
@@ -55,22 +58,9 @@ impl TraitData {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TraitItem {
-    Function(Function),
-    Const(Const),
-    TypeAlias(TypeAlias),
-    // Existential
-}
-// FIXME: not every function, ... is actually a trait item. maybe we should make
-// sure that you can only turn actual trait items into TraitItems. This would
-// require not implementing From, and instead having some checked way of
-// casting them.
-impl_froms!(TraitItem: Function, Const, TypeAlias);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitItemsIndex {
-    traits_by_def: FxHashMap<TraitItem, Trait>,
+    traits_by_def: FxHashMap<AssocItem, Trait>,
 }
 
 impl TraitItemsIndex {
@@ -86,7 +76,7 @@ impl TraitItemsIndex {
         index
     }
 
-    pub(crate) fn get_parent_trait(&self, item: TraitItem) -> Option<Trait> {
+    pub(crate) fn get_parent_trait(&self, item: AssocItem) -> Option<Trait> {
         self.traits_by_def.get(&item).cloned()
     }
 }

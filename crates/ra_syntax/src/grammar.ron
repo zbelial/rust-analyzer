@@ -1,62 +1,59 @@
 // Stores definitions which must be used in multiple places
-// See `cargo gen-syntax` (defined in crates/tools/src/main.rs)
+// See `cargo xtask codegen` (defined in xtasks/src/main.rs)
 Grammar(
-    single_byte_tokens: [
-        [";", "SEMI"],
-        [",", "COMMA"],
-        ["(", "L_PAREN"],
-        [")", "R_PAREN"],
-        ["{", "L_CURLY"],
-        ["}", "R_CURLY"],
-        ["[", "L_BRACK"],
-        ["]", "R_BRACK"],
-        ["<", "L_ANGLE"],
-        [">", "R_ANGLE"],
-        ["@", "AT"],
-        ["#", "POUND"],
-        ["~", "TILDE"],
-        ["?", "QUESTION"],
-        ["$", "DOLLAR"],
-        ["&", "AMP"],
-        ["|", "PIPE"],
-        ["+", "PLUS"],
-        ["*", "STAR"],
-        ["/", "SLASH"],
-        ["^", "CARET"],
-        ["%", "PERCENT"],
-        ["_", "UNDERSCORE"],
-    ],
-    // Tokens for which the longest match must be chosen (e.g. `..` is a DOTDOT, but `.` is a DOT)
-    multi_byte_tokens: [
-        [".", "DOT"],
-        ["..", "DOTDOT"],
-        ["...", "DOTDOTDOT"],
-        ["..=", "DOTDOTEQ"],
-        [":", "COLON"],
-        ["::", "COLONCOLON"],
-        ["=", "EQ"],
-        ["==", "EQEQ"],
-        ["=>", "FAT_ARROW"],
-        ["!", "EXCL"],
-        ["!=", "NEQ"],
-        ["-", "MINUS"],
-        ["->", "THIN_ARROW"],
-        ["<=", "LTEQ"],
-        [">=", "GTEQ"],
-        ["+=", "PLUSEQ"],
-        ["-=", "MINUSEQ"],
-        ["|=", "PIPEEQ"],
-        ["&=", "AMPEQ"],
-        ["^=", "CARETEQ"],
-        ["/=", "SLASHEQ"],
-        ["*=", "STAREQ"],
-        ["%=", "PERCENTEQ"],
-        ["&&", "AMPAMP"],
-        ["||", "PIPEPIPE"],
-        ["<<", "SHL"],
-        [">>", "SHR"],
-        ["<<=", "SHLEQ"],
-        [">>=", "SHREQ"],
+    punct: [
+        (";", "SEMI"),
+        (",", "COMMA"),
+        ("(", "L_PAREN"),
+        (")", "R_PAREN"),
+        ("{", "L_CURLY"),
+        ("}", "R_CURLY"),
+        ("[", "L_BRACK"),
+        ("]", "R_BRACK"),
+        ("<", "L_ANGLE"),
+        (">", "R_ANGLE"),
+        ("@", "AT"),
+        ("#", "POUND"),
+        ("~", "TILDE"),
+        ("?", "QUESTION"),
+        ("$", "DOLLAR"),
+        ("&", "AMP"),
+        ("|", "PIPE"),
+        ("+", "PLUS"),
+        ("*", "STAR"),
+        ("/", "SLASH"),
+        ("^", "CARET"),
+        ("%", "PERCENT"),
+        ("_", "UNDERSCORE"),
+        (".", "DOT"),
+        ("..", "DOTDOT"),
+        ("...", "DOTDOTDOT"),
+        ("..=", "DOTDOTEQ"),
+        (":", "COLON"),
+        ("::", "COLONCOLON"),
+        ("=", "EQ"),
+        ("==", "EQEQ"),
+        ("=>", "FAT_ARROW"),
+        ("!", "EXCL"),
+        ("!=", "NEQ"),
+        ("-", "MINUS"),
+        ("->", "THIN_ARROW"),
+        ("<=", "LTEQ"),
+        (">=", "GTEQ"),
+        ("+=", "PLUSEQ"),
+        ("-=", "MINUSEQ"),
+        ("|=", "PIPEEQ"),
+        ("&=", "AMPEQ"),
+        ("^=", "CARETEQ"),
+        ("/=", "SLASHEQ"),
+        ("*=", "STAREQ"),
+        ("%=", "PERCENTEQ"),
+        ("&&", "AMPAMP"),
+        ("||", "PIPEPIPE"),
+        ("<<", "SHL"),
+        (">>", "SHR"),
+        ("<<=", "SHLEQ"),
+        (">>=", "SHREQ"),
     ],
     keywords: [
         "async",
@@ -158,12 +155,14 @@ Grammar(
         "DYN_TRAIT_TYPE",
 
         "REF_PAT",
+        "BOX_PAT",
         "BIND_PAT",
         "PLACEHOLDER_PAT",
+        "DOT_DOT_PAT",
         "PATH_PAT",
-        "STRUCT_PAT",
-        "FIELD_PAT_LIST",
-        "FIELD_PAT",
+        "RECORD_PAT",
+        "RECORD_FIELD_PAT_LIST",
+        "RECORD_FIELD_PAT",
         "TUPLE_STRUCT_PAT",
         "TUPLE_PAT",
         "SLICE_PAT",
@@ -190,9 +189,9 @@ Grammar(
         "MATCH_ARM_LIST",
         "MATCH_ARM",
         "MATCH_GUARD",
-        "STRUCT_LIT",
-        "NAMED_FIELD_LIST",
-        "NAMED_FIELD",
+        "RECORD_LIT",
+        "RECORD_FIELD_LIST",
+        "RECORD_FIELD",
         "TRY_BLOCK_EXPR",
         "BOX_EXPR",
 
@@ -216,10 +215,10 @@ Grammar(
         "EXTERN_BLOCK",
         "EXTERN_ITEM_LIST",
         "ENUM_VARIANT",
-        "NAMED_FIELD_DEF_LIST",
-        "NAMED_FIELD_DEF",
-        "POS_FIELD_DEF_LIST",
-        "POS_FIELD_DEF",
+        "RECORD_FIELD_DEF_LIST",
+        "RECORD_FIELD_DEF",
+        "TUPLE_FIELD_DEF_LIST",
+        "TUPLE_FIELD_DEF",
         "ENUM_VARIANT_LIST",
         "ITEM_LIST",
         "ATTR",
@@ -263,7 +262,7 @@ Grammar(
         "SourceFile": (
             traits: [ "ModuleItemOwner", "FnDefOwner" ],
             collections: [
-                ["modules", "Module"],
+                ("modules", "Module"),
             ]
         ),
         "FnDef": (
@@ -274,7 +273,7 @@ Grammar(
                 "AttrsOwner",
                 "DocCommentsOwner"
             ],
-            options: [ "ParamList", ["body", "Block"], "RetType" ],
+            options: [ "ParamList", ["body", "BlockExpr"], "RetType" ],
         ),
         "RetType": (options: ["TypeRef"]),
         "StructDef": (
@@ -286,8 +285,8 @@ Grammar(
                 "DocCommentsOwner"
             ]
         ),
-        "NamedFieldDefList": (collections: [["fields", "NamedFieldDef"]]),
-        "NamedFieldDef": (
+        "RecordFieldDefList": (collections: [("fields", "RecordFieldDef")]),
+        "RecordFieldDef": (
             traits: [
                 "VisibilityOwner",
                 "NameOwner",
@@ -296,8 +295,8 @@ Grammar(
                 "TypeAscriptionOwner"
             ]
         ),
-        "PosFieldDefList": (collections: [["fields", "PosFieldDef"]]),
-        "PosFieldDef": ( traits: ["VisibilityOwner", "AttrsOwner"], options: ["TypeRef"]),
+        "TupleFieldDefList": (collections: [("fields", "TupleFieldDef")]),
+        "TupleFieldDef": ( traits: ["VisibilityOwner", "AttrsOwner"], options: ["TypeRef"]),
         "EnumDef": ( traits: [
             "VisibilityOwner",
             "NameOwner",
@@ -305,7 +304,7 @@ Grammar(
             "AttrsOwner",
             "DocCommentsOwner"
         ], options: [["variant_list", "EnumVariantList"]] ),
-        "EnumVariantList": ( collections: [["variants", "EnumVariant"]] ),
+        "EnumVariantList": ( collections: [("variants", "EnumVariant")] ),
         "EnumVariant": ( traits: ["NameOwner", "DocCommentsOwner", "AttrsOwner"], options: ["Expr"] ),
         "TraitDef": (
             traits: ["VisibilityOwner", "NameOwner", "AttrsOwner", "DocCommentsOwner", "TypeParamsOwner", "TypeBoundsOwner"],
@@ -316,7 +315,7 @@ Grammar(
             options: [ "ItemList" ]
         ),
         "ItemList": (
-            collections: [["impl_items", "ImplItem"]],
+            collections: [("impl_items", "ImplItem")],
             traits: [ "FnDefOwner", "ModuleItemOwner" ],
         ),
         "ConstDef": (
@@ -355,7 +354,7 @@ Grammar(
         "ImplBlock": (options: ["ItemList"], traits: ["TypeParamsOwner", "AttrsOwner"]),
 
         "ParenType": (options: ["TypeRef"]),
-        "TupleType": ( collections: [["fields", "TypeRef"]] ),
+        "TupleType": ( collections: [("fields", "TypeRef")] ),
         "NeverType": (),
         "PathType": (options: ["Path"]),
         "PointerType": (options: ["TypeRef"]),
@@ -398,17 +397,19 @@ Grammar(
         ),
         "ModuleItem": (
             enum: ["StructDef", "EnumDef", "FnDef", "TraitDef", "TypeAliasDef", "ImplBlock",
-                   "UseItem", "ExternCrateItem", "ConstDef", "StaticDef", "Module" ]
+                   "UseItem", "ExternCrateItem", "ConstDef", "StaticDef", "Module" ],
+            traits: ["AttrsOwner"]
         ),
         "ImplItem": (
-            enum: ["FnDef", "TypeAliasDef", "ConstDef"]
+            enum: ["FnDef", "TypeAliasDef", "ConstDef"],
+            traits: ["AttrsOwner"]
         ),
 
         "TupleExpr": (
-            collections: [["exprs", "Expr"]]
+            collections: [("exprs", "Expr")]
         ),
         "ArrayExpr": (
-            collections: [["exprs", "Expr"]]
+            collections: [("exprs", "Expr")]
         ),
         "ParenExpr": (options: ["Expr"]),
         "PathExpr": (options: ["Path"]),
@@ -425,7 +426,7 @@ Grammar(
             traits: ["LoopBodyOwner"],
         ),
         "TryBlockExpr": (
-            traits: ["TryBlockBodyOwner"],
+            options: [["body", "BlockExpr"]],
         ),
         "ForExpr": (
             traits: ["LoopBodyOwner"],
@@ -449,7 +450,7 @@ Grammar(
             options: [ "Expr", "MatchArmList" ],
         ),
         "MatchArmList": (
-            collections: [ ["arms", "MatchArm"] ],
+            collections: [ ("arms", "MatchArm") ],
             traits: [ "AttrsOwner" ]
         ),
         "MatchArm": (
@@ -457,16 +458,16 @@ Grammar(
                 [ "guard", "MatchGuard" ],
                 "Expr",
             ],
-            collections: [ [ "pats", "Pat" ] ],
+            collections: [ ("pats", "Pat") ],
             traits: [ "AttrsOwner" ]
         ),
         "MatchGuard": (options: ["Expr"]),
-        "StructLit": (options: ["Path", "NamedFieldList"]),
-        "NamedFieldList": (
-            collections: [ ["fields", "NamedField"] ],
+        "RecordLit": (options: ["Path", "RecordFieldList"]),
+        "RecordFieldList": (
+            collections: [ ("fields", "RecordField") ],
             options: [["spread", "Expr"]]
         ),
-        "NamedField": (options: ["NameRef", "Expr"]),
+        "RecordField": (options: ["NameRef", "Expr"]),
         "CallExpr": (
             traits: ["ArgListOwner"],
             options: [ "Expr" ],
@@ -482,6 +483,7 @@ Grammar(
         "CastExpr": (options: ["Expr", "TypeRef"]),
         "RefExpr": (options: ["Expr"]),
         "PrefixExpr": (options: ["Expr"]),
+        "BoxExpr": (options: ["Expr"]),
         "RangeExpr": (),
         "BinExpr": (),
 
@@ -504,7 +506,7 @@ Grammar(
                 "BlockExpr",
                 "ReturnExpr",
                 "MatchExpr",
-                "StructLit",
+                "RecordLit",
                 "CallExpr",
                 "IndexExpr",
                 "MethodCallExpr",
@@ -519,32 +521,35 @@ Grammar(
                 "BinExpr",
                 "Literal",
                 "MacroCall",
+                "BoxExpr",
             ],
         ),
 
         "RefPat": ( options: [ "Pat" ]),
+        "BoxPat": ( options: [ "Pat" ]),
         "BindPat": (
             options: [ "Pat" ],
             traits: ["NameOwner"]
         ),
         "PlaceholderPat": (),
+        "DotDotPat": (),
         "PathPat": ( options: [ "Path" ] ),
-        "StructPat": ( options: ["FieldPatList", "Path"] ),
-        "FieldPatList": (
+        "RecordPat": ( options: ["RecordFieldPatList", "Path"] ),
+        "RecordFieldPatList": (
             collections: [
-                ["field_pats", "FieldPat"],
-                ["bind_pats", "BindPat"],
+                ("record_field_pats", "RecordFieldPat"),
+                ("bind_pats", "BindPat"),
             ]
         ),
-        "FieldPat": (
+        "RecordFieldPat": (
             traits: ["NameOwner"],
             options: ["Pat"]
         ),
         "TupleStructPat": (
             options: ["Path"],
-            collections: [["args", "Pat"]],
+            collections: [("args", "Pat")],
         ),
-        "TuplePat": ( collections: [["args", "Pat"]] ),
+        "TuplePat": ( collections: [("args", "Pat")] ),
         "SlicePat": (),
         "RangePat": (),
         "LiteralPat": (options: ["Literal"]),
@@ -552,10 +557,12 @@ Grammar(
         "Pat": (
             enum: [
                 "RefPat",
+                "BoxPat",
                 "BindPat",
                 "PlaceholderPat",
+                "DotDotPat",
                 "PathPat",
-                "StructPat",
+                "RecordPat",
                 "TupleStructPat",
                 "TuplePat",
                 "SlicePat",
@@ -571,12 +578,13 @@ Grammar(
             traits: [ "NameOwner", "AttrsOwner","DocCommentsOwner" ],
             options: [ "TokenTree", "Path" ],
         ),
-        "Attr": ( options: [ ["value", "TokenTree"] ] ),
+        "AttrInput": ( enum: [ "Literal", "TokenTree" ] ),
+        "Attr": ( options: [ "Path", [ "input", "AttrInput" ] ] ),
         "TokenTree": (),
         "TypeParamList": (
             collections: [
-                ["type_params", "TypeParam" ],
-                ["lifetime_params", "LifetimeParam" ],
+                ("type_params", "TypeParam" ),
+                ("lifetime_params", "LifetimeParam" ),
             ]
         ),
         "TypeParam": ( traits: ["NameOwner", "AttrsOwner", "TypeBoundsOwner", "DefaultTypeParamOwner"] ),
@@ -590,7 +598,7 @@ Grammar(
         ),
         "TypeBoundList": (
             collections: [
-                ["bounds", "TypeBound"],
+                ("bounds", "TypeBound"),
             ]
         ),
         "WherePred": (
@@ -603,7 +611,7 @@ Grammar(
         ),
         "WhereClause": (
             collections: [
-                ["predicates", "WherePred"],
+                ("predicates", "WherePred"),
             ],
         ),
         "ExprStmt": (
@@ -627,7 +635,7 @@ Grammar(
         "Block": (
             options: [ "Expr" ],
             collections: [
-                ["statements", "Stmt"],
+                ("statements", "Stmt"),
             ],
             traits: [
                 "AttrsOwner",
@@ -636,7 +644,7 @@ Grammar(
         "ParamList": (
             options: [ "SelfParam" ],
             collections: [
-                ["params", "Param"]
+                ("params", "Param"),
             ]
         ),
         "SelfParam": (
@@ -663,14 +671,15 @@ Grammar(
             traits: ["NameOwner"],
         ),
         "UseTreeList": (
-            collections: [["use_trees", "UseTree"]]
+            collections: [("use_trees", "UseTree")]
         ),
         "ExternCrateItem": (
+            traits: ["AttrsOwner"],
             options: ["NameRef", "Alias"],
         ),
         "ArgList": (
             collections: [
-                ["args", "Expr"]
+                ("args", "Expr"),
             ]
         ),
         "Path": (
@@ -680,25 +689,25 @@ Grammar(
             ]
         ),
         "PathSegment": (
-            options: [ "NameRef", "TypeArgList" ]
+            options: [ "NameRef", "TypeArgList", "ParamList", "RetType", "PathType" ]
         ),
         "TypeArgList": (collections: [
-            ["type_args", "TypeArg"],
-            ["lifetime_args", "LifetimeArg"],
-            ["assoc_type_args", "AssocTypeArg"],
+            ("type_args", "TypeArg"),
+            ("lifetime_args", "LifetimeArg"),
+            ("assoc_type_args", "AssocTypeArg"),
         ]),
         "TypeArg": (options: ["TypeRef"]),
         "AssocTypeArg": (options: ["NameRef", "TypeRef"]),
         "LifetimeArg": (),
 
         "MacroItems": (
-            traits: [ "ModuleItemOwner", "FnDefOwner" ],            
+            traits: [ "ModuleItemOwner", "FnDefOwner" ],
         ),
 
         "MacroStmts" : (
             options: [ "Expr" ],
             collections: [
-                ["statements", "Stmt"],
+                ("statements", "Stmt"),
             ],
         )
     },

@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 mod memory_usage;
 #[cfg(feature = "cpu_profiler")]
 mod google_cpu_profiler;
@@ -22,7 +24,7 @@ pub use crate::memory_usage::{Bytes, MemoryUsage};
 
 // We use jemalloc mainly to get heap usage statistics, actual performance
 // difference is not measures.
-#[cfg(feature = "jemalloc")]
+#[cfg(all(feature = "jemalloc", not(target_env = "msvc")))]
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
@@ -196,7 +198,7 @@ impl Drop for Profiler {
                         let stdout = stderr();
                         let longer_than = stack.filter_data.longer_than;
                         if duration >= longer_than {
-                            print(0, &stack.messages, &mut stdout.lock(), longer_than);
+                            print(0, &stack.messages, &mut stdout.lock(), longer_than, None);
                         }
                         stack.messages.clear();
                     }
@@ -207,20 +209,28 @@ impl Drop for Profiler {
     }
 }
 
-fn print(lvl: usize, msgs: &[Message], out: &mut impl Write, longer_than: Duration) {
+fn print(
+    lvl: usize,
+    msgs: &[Message],
+    out: &mut impl Write,
+    longer_than: Duration,
+    total: Option<Duration>,
+) {
     let mut last = 0;
     let indent = repeat("    ").take(lvl + 1).collect::<String>();
     // We output hierarchy for long calls, but sum up all short calls
     let mut short = Vec::new();
+    let mut accounted_for = Duration::default();
     for (i, &Message { level, duration, message: ref msg }) in msgs.iter().enumerate() {
         if level != lvl {
             continue;
         }
+        accounted_for += duration;
         if duration >= longer_than {
             writeln!(out, "{} {:6}ms - {}", indent, duration.as_millis(), msg)
                 .expect("printing profiling info to stdout");
 
-            print(lvl + 1, &msgs[last..i], out, longer_than);
+            print(lvl + 1, &msgs[last..i], out, longer_than, Some(duration));
         } else {
             short.push((msg, duration))
         }
@@ -237,6 +247,15 @@ fn print(lvl: usize, msgs: &[Message], out: &mut impl Write, longer_than: Durati
         });
         writeln!(out, "{} {:6}ms - {} ({} calls)", indent, total_duration.as_millis(), msg, count)
             .expect("printing profiling info to stdout");
+    }
+
+    if let Some(total) = total {
+        if let Some(unaccounted) = total.checked_sub(accounted_for) {
+            if unaccounted >= longer_than && last > 0 {
+                writeln!(out, "{} {:6}ms - ???", indent, unaccounted.as_millis())
+                    .expect("printing profiling info to stdout");
+            }
+        }
     }
 }
 

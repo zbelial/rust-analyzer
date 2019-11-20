@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use crate::TextUnit;
 use rustc_hash::FxHashMap;
 use superslice::Ext;
@@ -278,5 +280,4 @@ const C: char = \"メ メ\";
 
         assert_eq!(col_index.utf16_to_utf8_col(2, 15), TextUnit::from_usize(15));
     }
-
 }

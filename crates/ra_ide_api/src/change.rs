@@ -1,18 +1,20 @@
+//! FIXME: write short doc here
+
 use std::{fmt, sync::Arc, time};
 
 use ra_db::{
     salsa::{Database, Durability, SweepStrategy},
-    CrateGraph, FileId, SourceDatabase, SourceRoot, SourceRootId,
+    CrateGraph, CrateId, FileId, RelativePathBuf, SourceDatabase, SourceDatabaseExt, SourceRoot,
+    SourceRootId,
 };
 use ra_prof::{memory_usage, profile, Bytes};
 use ra_syntax::SourceFile;
+#[cfg(not(feature = "wasm"))]
 use rayon::prelude::*;
-use relative_path::RelativePathBuf;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    db::RootDatabase,
-    status::syntax_tree_stats,
+    db::{DebugData, RootDatabase},
     symbol_index::{SymbolIndex, SymbolsDatabase},
 };
 
@@ -23,6 +25,7 @@ pub struct AnalysisChange {
     files_changed: Vec<(FileId, Arc<String>)>,
     libraries_added: Vec<LibraryData>,
     crate_graph: Option<CrateGraph>,
+    debug_data: DebugData,
 }
 
 impl fmt::Debug for AnalysisChange {
@@ -40,7 +43,7 @@ impl fmt::Debug for AnalysisChange {
         if !self.libraries_added.is_empty() {
             d.field("libraries_added", &self.libraries_added.len());
         }
-        if !self.crate_graph.is_some() {
+        if !self.crate_graph.is_none() {
             d.field("crate_graph", &self.crate_graph);
         }
         d.finish()
@@ -82,6 +85,14 @@ impl AnalysisChange {
 
     pub fn set_crate_graph(&mut self, graph: CrateGraph) {
         self.crate_graph = Some(graph);
+    }
+
+    pub fn set_debug_crate_name(&mut self, crate_id: CrateId, name: String) {
+        self.debug_data.crate_names.insert(crate_id, name);
+    }
+
+    pub fn set_debug_root_path(&mut self, source_root_id: SourceRootId, path: String) {
+        self.debug_data.root_paths.insert(source_root_id, path);
     }
 }
 
@@ -134,7 +145,12 @@ impl LibraryData {
         root_id: SourceRootId,
         files: Vec<(FileId, RelativePathBuf, Arc<String>)>,
     ) -> LibraryData {
-        let symbol_index = SymbolIndex::for_files(files.par_iter().map(|(file_id, _, text)| {
+        #[cfg(not(feature = "wasm"))]
+        let iter = files.par_iter();
+        #[cfg(feature = "wasm")]
+        let iter = files.iter();
+
+        let symbol_index = SymbolIndex::for_files(iter.map(|(file_id, _, text)| {
             let parse = SourceFile::parse(text);
             (*file_id, parse)
         }));
@@ -200,6 +216,8 @@ impl RootDatabase {
         if let Some(crate_graph) = change.crate_graph {
             self.set_crate_graph_with_durability(Arc::new(crate_graph), Durability::HIGH)
         }
+
+        Arc::make_mut(&mut self.debug_data).merge(change.debug_data)
     }
 
     fn apply_root_change(&mut self, root_id: SourceRootId, root_change: RootChange) {
@@ -213,29 +231,32 @@ impl RootDatabase {
                 durability,
             );
             self.set_file_source_root_with_durability(add_file.file_id, root_id, durability);
-            source_root.files.insert(add_file.path, add_file.file_id);
+            source_root.insert_file(add_file.path, add_file.file_id);
         }
         for remove_file in root_change.removed {
             self.set_file_text_with_durability(remove_file.file_id, Default::default(), durability);
-            source_root.files.remove(&remove_file.path);
+            source_root.remove_file(&remove_file.path);
         }
         self.set_source_root_with_durability(root_id, Arc::new(source_root), durability);
     }
 
     pub(crate) fn maybe_collect_garbage(&mut self) {
+        if cfg!(feature = "wasm") {
+            return;
+        }
+
         if self.last_gc_check.elapsed() > GC_COOLDOWN {
-            self.last_gc_check = time::Instant::now();
-            let retained_trees = syntax_tree_stats(self).retained;
-            if retained_trees > 100 {
-                log::info!("automatic garbadge collection, {} retained trees", retained_trees);
-                self.collect_garbage();
-            }
+            self.last_gc_check = crate::wasm_shims::Instant::now();
         }
     }
 
     pub(crate) fn collect_garbage(&mut self) {
+        if cfg!(feature = "wasm") {
+            return;
+        }
+
         let _p = profile("RootDatabase::collect_garbage");
-        self.last_gc = time::Instant::now();
+        self.last_gc = crate::wasm_shims::Instant::now();
 
         let sweep = SweepStrategy::default().discard_values().sweep_all_revisions();
 
@@ -250,12 +271,11 @@ impl RootDatabase {
         self.query(hir::db::AstIdMapQuery).sweep(sweep);
 
         self.query(hir::db::RawItemsWithSourceMapQuery).sweep(sweep);
-        self.query(hir::db::ImplsInModuleWithSourceMapQuery).sweep(sweep);
         self.query(hir::db::BodyWithSourceMapQuery).sweep(sweep);
 
         self.query(hir::db::ExprScopesQuery).sweep(sweep);
         self.query(hir::db::InferQuery).sweep(sweep);
-        self.query(hir::db::BodyHirQuery).sweep(sweep);
+        self.query(hir::db::BodyQuery).sweep(sweep);
     }
 
     pub(crate) fn per_query_memory_usage(&mut self) -> Vec<(String, Bytes)> {
@@ -293,15 +313,13 @@ impl RootDatabase {
             hir::db::RawItemsWithSourceMapQuery
             hir::db::RawItemsQuery
             hir::db::CrateDefMapQuery
-            hir::db::ImplsInModuleWithSourceMapQuery
-            hir::db::ImplsInModuleQuery
             hir::db::GenericParamsQuery
             hir::db::FnDataQuery
             hir::db::TypeAliasDataQuery
             hir::db::ConstDataQuery
             hir::db::StaticDataQuery
             hir::db::ModuleLangItemsQuery
-            hir::db::LangItemsQuery
+            hir::db::CrateLangItemsQuery
             hir::db::LangItemQuery
             hir::db::DocumentationQuery
             hir::db::ExprScopesQuery
@@ -312,13 +330,14 @@ impl RootDatabase {
             hir::db::GenericPredicatesQuery
             hir::db::GenericDefaultsQuery
             hir::db::BodyWithSourceMapQuery
-            hir::db::BodyHirQuery
+            hir::db::BodyQuery
             hir::db::ImplsInCrateQuery
             hir::db::ImplsForTraitQuery
             hir::db::AssociatedTyDataQuery
             hir::db::TraitDatumQuery
             hir::db::StructDatumQuery
             hir::db::ImplDatumQuery
+            hir::db::ImplDataQuery
             hir::db::TraitSolveQuery
         ];
         acc.sort_by_key(|it| std::cmp::Reverse(it.1));

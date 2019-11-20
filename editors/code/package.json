@@ -13,18 +13,17 @@
         "Other"
     ],
     "engines": {
-        "vscode": "^1.33.0"
+        "vscode": "^1.37.0"
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "package": "vsce package",
-        "compile": "tsc -p ./ && shx cp src/utils/terminateProcess.sh out/utils/terminateProcess.sh",
+        "compile": "rollup -c && shx cp src/utils/terminateProcess.sh bundle/terminateProcess.sh",
         "watch": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install",
         "fix": "prettier **/*.{json,ts} --write && tslint --project . --fix",
         "lint": "tslint --project .",
-        "test": "node node_modules/vscode/bin/test",
         "prettier": "prettier **/*.{json,ts}",
+        "test": "tsc -p . && node ./out/test/runTest.js",
         "travis": "npm run compile && npm run test && npm run lint && npm run prettier -- --write && git diff --exit-code"
     },
     "prettier": {
@@ -36,16 +35,24 @@
         "vscode-languageclient": "^5.3.0-next.4"
     },
     "devDependencies": {
+        "@types/glob": "^7.1.1",
         "@types/mocha": "^5.2.7",
         "@types/node": "^10.14.13",
         "@types/seedrandom": "^2.4.28",
+        "@types/vscode": "^1.37.0",
+        "glob": "^7.1.4",
+        "mocha": "^6.2.0",
         "prettier": "^1.18.2",
+        "rollup": "^1.23.1",
+        "rollup-plugin-commonjs": "^10.1.0",
+        "rollup-plugin-node-resolve": "^5.2.0",
+        "rollup-plugin-typescript": "^1.0.1",
         "shx": "^0.3.1",
         "tslint": "^5.18.0",
         "tslint-config-prettier": "^1.18.0",
         "typescript": "^3.5.3",
-        "vsce": "^1.66.0",
-        "vscode": "^1.1.35"
+        "vsce": "^1.67.0",
+        "vscode-test": "^1.2.0"
     },
     "activationEvents": [
         "onLanguage:rust",
@@ -53,7 +60,7 @@
         "onCommand:rust-analyzer.collectGarbage",
         "workspaceContains:**/Cargo.toml"
     ],
-    "main": "./out/extension",
+    "main": "./bundle/extension",
     "contributes": {
         "taskDefinitions": [
             {
@@ -81,6 +88,11 @@
             {
                 "command": "rust-analyzer.syntaxTree",
                 "title": "Show Syntax Tree",
+                "category": "Rust Analyzer"
+            },
+            {
+                "command": "rust-analyzer.expandMacro",
+                "title": "Expand macro recursively",
                 "category": "Rust Analyzer"
             },
             {
@@ -165,10 +177,10 @@
                     "default": false,
                     "description": "When highlighting Rust code, use a unique color per identifier"
                 },
-                "rust-analyzer.showWorkspaceLoadedNotification": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Show notification when workspace was loaded"
+                "rust-analyzer.featureFlags": {
+                    "type": "object",
+                    "default": {},
+                    "description": "Fine grained feature flags to disable annoying features"
                 },
                 "rust-analyzer.enableEnhancedTyping": {
                     "type": "boolean",
@@ -199,8 +211,13 @@
                 },
                 "rust-analyzer.excludeGlobs": {
                     "type": "array",
-                    "default": "[]",
+                    "default": [],
                     "description": "Paths to exclude from analysis"
+                },
+                "rust-analyzer.useClientWatching": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "client provided file watching instead of notify watching."
                 },
                 "rust-analyzer.cargo-watch.arguments": {
                     "type": "string",
@@ -211,6 +228,11 @@
                     "type": "string",
                     "description": "`cargo-watch` command. (e.g: `clippy` will run as `cargo watch -x clippy` )",
                     "default": "check"
+                },
+                "rust-analyzer.cargo-watch.ignore": {
+                    "type": "array",
+                    "description": "A list of patterns for cargo-watch to ignore (will be passed as `--ignore`)",
+                    "default": []
                 },
                 "rust-analyzer.trace.server": {
                     "type": "string",
@@ -248,6 +270,11 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Display additional type information in the editor"
+                },
+                "rust-analyzer.maxInlayHintLength": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Maximum length for inlay hints"
                 }
             }
         },

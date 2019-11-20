@@ -3,8 +3,10 @@
 use super::{InferenceContext, Obligation};
 use crate::db::HirDatabase;
 use crate::ty::{
-    Canonical, InEnvironment, InferTy, ProjectionPredicate, ProjectionTy, TraitRef, Ty,
+    Canonical, InEnvironment, InferTy, ProjectionPredicate, ProjectionTy, Substs, TraitRef, Ty,
+    TypeWalk,
 };
+use crate::util::make_mut_slice;
 
 impl<'a, D: HirDatabase> InferenceContext<'a, D> {
     pub(super) fn canonicalizer<'b>(&'b mut self) -> Canonicalizer<'a, 'b, D>
@@ -52,7 +54,9 @@ where
                     // recursive type
                     return tv.fallback_value();
                 }
-                if let Some(known_ty) = self.ctx.var_unification_table.probe_value(inner).known() {
+                if let Some(known_ty) =
+                    self.ctx.var_unification_table.inlined_probe_value(inner).known()
+                {
                     self.var_stack.push(inner);
                     let result = self.do_canonicalize_ty(known_ty.clone());
                     self.var_stack.pop();
@@ -63,6 +67,7 @@ where
                         InferTy::TypeVar(_) => InferTy::TypeVar(root),
                         InferTy::IntVar(_) => InferTy::IntVar(root),
                         InferTy::FloatVar(_) => InferTy::FloatVar(root),
+                        InferTy::MaybeNeverTypeVar(_) => InferTy::MaybeNeverTypeVar(root),
                     };
                     let position = self.add(free_var);
                     Ty::Bound(position as u32)
@@ -72,13 +77,11 @@ where
         })
     }
 
-    fn do_canonicalize_trait_ref(&mut self, trait_ref: TraitRef) -> TraitRef {
-        let substs = trait_ref
-            .substs
-            .iter()
-            .map(|ty| self.do_canonicalize_ty(ty.clone()))
-            .collect::<Vec<_>>();
-        TraitRef { trait_: trait_ref.trait_, substs: substs.into() }
+    fn do_canonicalize_trait_ref(&mut self, mut trait_ref: TraitRef) -> TraitRef {
+        for ty in make_mut_slice(&mut trait_ref.substs.0) {
+            *ty = self.do_canonicalize_ty(ty.clone());
+        }
+        trait_ref
     }
 
     fn into_canonicalized<T>(self, result: T) -> Canonicalized<T> {
@@ -88,13 +91,11 @@ where
         }
     }
 
-    fn do_canonicalize_projection_ty(&mut self, projection_ty: ProjectionTy) -> ProjectionTy {
-        let params = projection_ty
-            .parameters
-            .iter()
-            .map(|ty| self.do_canonicalize_ty(ty.clone()))
-            .collect::<Vec<_>>();
-        ProjectionTy { associated_ty: projection_ty.associated_ty, parameters: params.into() }
+    fn do_canonicalize_projection_ty(&mut self, mut projection_ty: ProjectionTy) -> ProjectionTy {
+        for ty in make_mut_slice(&mut projection_ty.parameters.0) {
+            *ty = self.do_canonicalize_ty(ty.clone());
+        }
+        projection_ty
     }
 
     fn do_canonicalize_projection_predicate(
@@ -133,17 +134,19 @@ where
 }
 
 impl<T> Canonicalized<T> {
-    pub fn decanonicalize_ty(&self, ty: Ty) -> Ty {
-        ty.fold(&mut |ty| match ty {
-            Ty::Bound(idx) => {
-                if (idx as usize) < self.free_vars.len() {
-                    Ty::Infer(self.free_vars[idx as usize])
-                } else {
-                    Ty::Bound(idx)
+    pub fn decanonicalize_ty(&self, mut ty: Ty) -> Ty {
+        ty.walk_mut_binders(
+            &mut |ty, binders| match ty {
+                &mut Ty::Bound(idx) => {
+                    if idx as usize >= binders && (idx as usize - binders) < self.free_vars.len() {
+                        *ty = Ty::Infer(self.free_vars[idx as usize - binders]);
+                    }
                 }
-            }
-            ty => ty,
-        })
+                _ => {}
+            },
+            0,
+        );
+        ty
     }
 
     pub fn apply_solution(
@@ -152,8 +155,7 @@ impl<T> Canonicalized<T> {
         solution: Canonical<Vec<Ty>>,
     ) {
         // the solution may contain new variables, which we need to convert to new inference vars
-        let new_vars =
-            (0..solution.num_vars).map(|_| ctx.new_type_var()).collect::<Vec<_>>().into();
+        let new_vars = Substs((0..solution.num_vars).map(|_| ctx.new_type_var()).collect());
         for (i, ty) in solution.value.into_iter().enumerate() {
             let var = self.free_vars[i];
             ctx.unify(&Ty::Infer(var), &ty.subst_bound_vars(&new_vars));

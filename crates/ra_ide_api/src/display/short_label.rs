@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use format_buf::format;
 use ra_syntax::ast::{self, AstNode, NameOwner, TypeAscriptionOwner, VisibilityOwner};
 
@@ -53,7 +55,7 @@ impl ShortLabel for ast::StaticDef {
     }
 }
 
-impl ShortLabel for ast::NamedFieldDef {
+impl ShortLabel for ast::RecordFieldDef {
     fn short_label(&self) -> Option<String> {
         short_label_from_ascribed_node(self, "")
     }

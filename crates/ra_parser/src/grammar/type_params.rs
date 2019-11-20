@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use super::*;
 
 pub(super) fn opt_type_param_list(p: &mut Parser) {
@@ -10,7 +12,7 @@ pub(super) fn opt_type_param_list(p: &mut Parser) {
 fn type_param_list(p: &mut Parser) {
     assert!(p.at(T![<]));
     let m = p.start();
-    p.bump();
+    p.bump(T![<]);
 
     while !p.at(EOF) && !p.at(T![>]) {
         let m = p.start();
@@ -38,7 +40,7 @@ fn type_param_list(p: &mut Parser) {
 
 fn lifetime_param(p: &mut Parser, m: Marker) {
     assert!(p.at(LIFETIME));
-    p.bump();
+    p.bump(LIFETIME);
     if p.at(T![:]) {
         lifetime_bounds(p);
     }
@@ -54,7 +56,7 @@ fn type_param(p: &mut Parser, m: Marker) {
     // test type_param_default
     // struct S<T = i32>;
     if p.at(T![=]) {
-        p.bump();
+        p.bump(T![=]);
         types::type_(p)
     }
     m.complete(p, TYPE_PARAM);
@@ -64,15 +66,15 @@ fn type_param(p: &mut Parser, m: Marker) {
 // struct S<T: 'a + ?Sized + (Copy)>;
 pub(super) fn bounds(p: &mut Parser) {
     assert!(p.at(T![:]));
-    p.bump();
+    p.bump(T![:]);
     bounds_without_colon(p);
 }
 
 fn lifetime_bounds(p: &mut Parser) {
     assert!(p.at(T![:]));
-    p.bump();
+    p.bump(T![:]);
     while p.at(LIFETIME) {
-        p.bump();
+        p.bump(LIFETIME);
         if !p.eat(T![+]) {
             break;
         }
@@ -99,7 +101,7 @@ fn type_bound(p: &mut Parser) -> bool {
     let has_paren = p.eat(T!['(']);
     p.eat(T![?]);
     match p.current() {
-        LIFETIME => p.bump(),
+        LIFETIME => p.bump(LIFETIME),
         T![for] => types::for_type(p),
         _ if paths::is_use_path_start(p) => types::path_type_(p, false),
         _ => {
@@ -128,7 +130,7 @@ pub(super) fn opt_where_clause(p: &mut Parser) {
         return;
     }
     let m = p.start();
-    p.bump();
+    p.bump(T![where]);
 
     while is_where_predicate(p) {
         where_predicate(p);
@@ -156,14 +158,17 @@ fn is_where_predicate(p: &mut Parser) -> bool {
 }
 
 fn is_where_clause_end(p: &mut Parser) -> bool {
-    p.current() == T!['{'] || p.current() == T![;] || p.current() == T![=]
+    match p.current() {
+        T!['{'] | T![;] | T![=] => true,
+        _ => false,
+    }
 }
 
 fn where_predicate(p: &mut Parser) {
     let m = p.start();
     match p.current() {
         LIFETIME => {
-            p.bump();
+            p.bump(LIFETIME);
             if p.at(T![:]) {
                 bounds(p);
             } else {

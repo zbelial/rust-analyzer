@@ -1,3 +1,14 @@
+//! Config used by the language server.
+//!
+//! We currently get this config from `initialize` LSP request, which is not the
+//! best way to do it, but was the simplest thing we could implement.
+//!
+//! Of particular interest is the `feature_flags` hash map: while other fields
+//! configure the server itself, feature flags are passed into analysis, and
+//! tweak things like automatic insertion of `()` in completions.
+
+use rustc_hash::FxHashMap;
+
 use serde::{Deserialize, Deserializer};
 
 /// Client provided initialization options
@@ -12,24 +23,29 @@ pub struct ServerConfig {
     #[serde(deserialize_with = "nullable_bool_false")]
     pub publish_decorations: bool,
 
-    /// Whether or not the workspace loaded notification should be sent
-    ///
-    /// Defaults to `true`
-    #[serde(deserialize_with = "nullable_bool_true")]
-    pub show_workspace_loaded: bool,
-
     pub exclude_globs: Vec<String>,
+    #[serde(deserialize_with = "nullable_bool_false")]
+    pub use_client_watching: bool,
 
     pub lru_capacity: Option<usize>,
+
+    /// For internal usage to make integrated tests faster.
+    #[serde(deserialize_with = "nullable_bool_true")]
+    pub with_sysroot: bool,
+
+    /// Fine grained feature flags to disable specific features.
+    pub feature_flags: FxHashMap<String, bool>,
 }
 
 impl Default for ServerConfig {
     fn default() -> ServerConfig {
         ServerConfig {
             publish_decorations: false,
-            show_workspace_loaded: true,
             exclude_globs: Vec::new(),
+            use_client_watching: false,
             lru_capacity: None,
+            with_sysroot: true,
+            feature_flags: FxHashMap::default(),
         }
     }
 }
@@ -63,10 +79,7 @@ mod test {
         assert_eq!(default, serde_json::from_str(r#"{}"#).unwrap());
         assert_eq!(
             default,
-            serde_json::from_str(
-                r#"{"publishDecorations":null, "showWorkspaceLoaded":null, "lruCapacity":null}"#
-            )
-            .unwrap()
+            serde_json::from_str(r#"{"publishDecorations":null, "lruCapacity":null}"#).unwrap()
         );
     }
 }

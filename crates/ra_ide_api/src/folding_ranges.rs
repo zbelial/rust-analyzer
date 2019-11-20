@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use rustc_hash::FxHashSet;
 
 use ra_syntax::{
@@ -81,8 +83,15 @@ fn fold_kind(kind: SyntaxKind) -> Option<FoldKind> {
     match kind {
         COMMENT => Some(FoldKind::Comment),
         USE_ITEM => Some(FoldKind::Imports),
-        NAMED_FIELD_DEF_LIST | FIELD_PAT_LIST | ITEM_LIST | EXTERN_ITEM_LIST | USE_TREE_LIST
-        | BLOCK | ENUM_VARIANT_LIST | TOKEN_TREE => Some(FoldKind::Block),
+        RECORD_FIELD_DEF_LIST
+        | RECORD_FIELD_PAT_LIST
+        | ITEM_LIST
+        | EXTERN_ITEM_LIST
+        | USE_TREE_LIST
+        | BLOCK
+        | MATCH_ARM_LIST
+        | ENUM_VARIANT_LIST
+        | TOKEN_TREE => Some(FoldKind::Block),
         _ => None,
     }
 }
@@ -350,6 +359,20 @@ macro_rules! foo <fold>{
 "#;
 
         let folds = &[FoldKind::Block];
+        do_check(text, folds);
+    }
+
+    #[test]
+    fn test_fold_match_arms() {
+        let text = r#"
+fn main() <fold>{
+    match 0 <fold>{
+        0 => 0,
+        _ => 1,
+    }</fold>
+}</fold>"#;
+
+        let folds = &[FoldKind::Block, FoldKind::Block];
         do_check(text, folds);
     }
 }

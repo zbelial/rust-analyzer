@@ -1,23 +1,24 @@
+//! FIXME: write short doc here
+
 use std::sync::Arc;
 
 use ra_syntax::ast;
 
 use crate::{
-    AstDatabase, Const, DefDatabase, Enum, EnumVariant, FieldSource, Function, HasSource,
-    HirDatabase, MacroDef, Module, Static, Struct, StructField, Trait, TypeAlias, Union,
+    db::{AstDatabase, DefDatabase, HirDatabase},
+    Adt, Const, Enum, EnumVariant, FieldSource, Function, HasSource, MacroDef, Module, Static,
+    Struct, StructField, Trait, TypeAlias, Union,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum DocDef {
     Module(Module),
     StructField(StructField),
-    Struct(Struct),
-    Enum(Enum),
+    Adt(Adt),
     EnumVariant(EnumVariant),
     Static(Static),
     Const(Const),
     Function(Function),
-    Union(Union),
     Trait(Trait),
     TypeAlias(TypeAlias),
     MacroDef(MacroDef),
@@ -26,13 +27,11 @@ pub enum DocDef {
 impl_froms!(
     DocDef: Module,
     StructField,
-    Struct,
-    Enum,
+    Adt(Struct, Enum, Union),
     EnumVariant,
     Static,
     Const,
     Function,
-    Union,
     Trait,
     TypeAlias,
     MacroDef
@@ -76,13 +75,15 @@ pub(crate) fn documentation_query(
             FieldSource::Named(named) => docs_from_ast(&named),
             FieldSource::Pos(..) => None,
         },
-        DocDef::Struct(it) => docs_from_ast(&it.source(db).ast),
-        DocDef::Enum(it) => docs_from_ast(&it.source(db).ast),
+        DocDef::Adt(it) => match it {
+            Adt::Struct(it) => docs_from_ast(&it.source(db).ast),
+            Adt::Enum(it) => docs_from_ast(&it.source(db).ast),
+            Adt::Union(it) => docs_from_ast(&it.source(db).ast),
+        },
         DocDef::EnumVariant(it) => docs_from_ast(&it.source(db).ast),
         DocDef::Static(it) => docs_from_ast(&it.source(db).ast),
         DocDef::Const(it) => docs_from_ast(&it.source(db).ast),
         DocDef::Function(it) => docs_from_ast(&it.source(db).ast),
-        DocDef::Union(it) => docs_from_ast(&it.source(db).ast),
         DocDef::Trait(it) => docs_from_ast(&it.source(db).ast),
         DocDef::TypeAlias(it) => docs_from_ast(&it.source(db).ast),
         DocDef::MacroDef(it) => docs_from_ast(&it.source(db).ast),

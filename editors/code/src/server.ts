@@ -1,8 +1,16 @@
+import { homedir } from 'os';
 import * as lc from 'vscode-languageclient';
 
 import { window, workspace } from 'vscode';
 import { Config } from './config';
 import { Highlighter } from './highlighting';
+
+function expandPathResolving(path: string) {
+    if (path.startsWith('~/')) {
+        return path.replace('~', homedir());
+    }
+    return path;
+}
 
 export class Server {
     public static highlighter = new Highlighter();
@@ -20,7 +28,7 @@ export class Server {
         }
 
         const run: lc.Executable = {
-            command: this.config.raLspServerPath,
+            command: expandPathResolving(this.config.raLspServerPath),
             options: { cwd: folder }
         };
         const serverOptions: lc.ServerOptions = {
@@ -34,10 +42,10 @@ export class Server {
             documentSelector: [{ scheme: 'file', language: 'rust' }],
             initializationOptions: {
                 publishDecorations: true,
-                showWorkspaceLoaded:
-                    Server.config.showWorkspaceLoadedNotification,
                 lruCapacity: Server.config.lruCapacity,
-                excludeGlobs: Server.config.excludeGlobs
+                excludeGlobs: Server.config.excludeGlobs,
+                useClientWatching: Server.config.useClientWatching,
+                featureFlags: Server.config.featureFlags
             },
             traceOutputChannel
         };

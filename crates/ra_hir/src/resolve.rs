@@ -1,22 +1,22 @@
 //! Name resolution.
 use std::sync::Arc;
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use hir_def::{
+    builtin_type::BuiltinType,
+    nameres::CrateDefMap,
+    path::{Path, PathKind},
+    AdtId, CrateModuleId, ModuleDefId,
+};
+use hir_expand::name::{self, Name};
+use rustc_hash::FxHashSet;
 
 use crate::{
     code_model::Crate,
-    db::HirDatabase,
-    either::Either,
-    expr::{
-        scope::{ExprScopes, ScopeId},
-        PatId,
-    },
+    db::{DefDatabase, HirDatabase},
+    expr::{ExprScopes, PatId, ScopeId},
     generics::GenericParams,
-    impl_block::ImplBlock,
-    name::{Name, SELF_PARAM, SELF_TYPE},
-    nameres::{CrateDefMap, CrateModuleId, PerNs},
-    path::Path,
-    MacroDef, ModuleDef, Trait,
+    Adt, Const, DefWithBody, Enum, EnumVariant, Function, ImplBlock, Local, MacroDef, ModuleDef,
+    PerNs, Static, Struct, Trait, TypeAlias,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -33,69 +33,9 @@ pub(crate) struct ModuleItemMap {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ExprScope {
+    owner: DefWithBody,
     expr_scopes: Arc<ExprScopes>,
     scope_id: ScopeId,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct PathResult {
-    /// The actual path resolution
-    resolution: PerNs<Resolution>,
-    /// The first index in the path that we
-    /// were unable to resolve.
-    /// When path is fully resolved, this is 0.
-    remaining_index: usize,
-}
-
-impl PathResult {
-    /// Returns the remaining index in the result
-    /// returns None if the path was fully resolved
-    pub(crate) fn remaining_index(&self) -> Option<usize> {
-        if self.remaining_index > 0 {
-            Some(self.remaining_index)
-        } else {
-            None
-        }
-    }
-
-    /// Consumes `PathResult` and returns the contained `PerNs<Resolution>`
-    /// if the path was fully resolved, meaning we have no remaining items
-    pub(crate) fn into_fully_resolved(self) -> PerNs<Resolution> {
-        if self.is_fully_resolved() {
-            self.resolution
-        } else {
-            PerNs::none()
-        }
-    }
-
-    /// Consumes `PathResult` and returns the resolution and the
-    /// remaining_index as a tuple.
-    pub(crate) fn into_inner(self) -> (PerNs<Resolution>, Option<usize>) {
-        let index = self.remaining_index();
-        (self.resolution, index)
-    }
-
-    /// Path is fully resolved when `remaining_index` is none
-    /// and the resolution contains anything
-    pub(crate) fn is_fully_resolved(&self) -> bool {
-        !self.resolution.is_none() && self.remaining_index().is_none()
-    }
-
-    fn empty() -> PathResult {
-        PathResult { resolution: PerNs::none(), remaining_index: 0 }
-    }
-
-    fn from_resolution(res: PerNs<Resolution>) -> PathResult {
-        PathResult::from_resolution_with_index(res, 0)
-    }
-
-    fn from_resolution_with_index(res: PerNs<Resolution>, remaining_index: usize) -> PathResult {
-        if res.is_none() {
-            PathResult::empty()
-        } else {
-            PathResult { resolution: res, remaining_index }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -104,96 +44,288 @@ pub(crate) enum Scope {
     ModuleScope(ModuleItemMap),
     /// Brings the generic parameters of an item into scope
     GenericParams(Arc<GenericParams>),
-    /// Brings `Self` into scope
+    /// Brings `Self` in `impl` block into scope
     ImplBlockScope(ImplBlock),
+    /// Brings `Self` in enum, struct and union definitions into scope
+    AdtScope(Adt),
     /// Local bindings
     ExprScope(ExprScope),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Resolution {
-    /// An item
-    Def(ModuleDef),
-    /// A local binding (only value namespace)
-    LocalBinding(PatId),
-    /// A generic parameter
-    GenericParam(u32),
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum TypeNs {
     SelfType(ImplBlock),
+    GenericParam(u32),
+    Adt(Adt),
+    AdtSelfType(Adt),
+    EnumVariant(EnumVariant),
+    TypeAlias(TypeAlias),
+    BuiltinType(BuiltinType),
+    Trait(Trait),
+    // Module belong to type ns, but the resolver is used when all module paths
+    // are fully resolved.
+    // Module(Module)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ResolveValueResult {
+    ValueNs(ValueNs),
+    Partial(TypeNs, usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ValueNs {
+    LocalBinding(PatId),
+    Function(Function),
+    Const(Const),
+    Static(Static),
+    Struct(Struct),
+    EnumVariant(EnumVariant),
 }
 
 impl Resolver {
-    pub(crate) fn resolve_name(&self, db: &impl HirDatabase, name: &Name) -> PerNs<Resolution> {
-        let mut resolution = PerNs::none();
-        for scope in self.scopes.iter().rev() {
-            resolution = resolution.or(scope.resolve_name(db, name));
-            if resolution.is_both() {
-                return resolution;
-            }
-        }
-        resolution
-    }
-
-    pub(crate) fn resolve_path_as_macro(
-        &self,
-        db: &impl HirDatabase,
-        path: &Path,
-    ) -> Option<MacroDef> {
-        let (item_map, module) = self.module()?;
-        match item_map.resolve_path_with_macro(db, module, path) {
-            (Either::B(macro_def), None) => Some(macro_def),
+    /// Resolve known trait from std, like `std::futures::Future`
+    pub(crate) fn resolve_known_trait(&self, db: &impl HirDatabase, path: &Path) -> Option<Trait> {
+        let res = self.resolve_module_path(db, path).take_types()?;
+        match res {
+            ModuleDefId::TraitId(it) => Some(it.into()),
             _ => None,
         }
     }
 
-    /// Returns the resolved path segments
-    /// Which may be fully resolved, empty or partially resolved.
-    pub(crate) fn resolve_path_segments(&self, db: &impl HirDatabase, path: &Path) -> PathResult {
-        if let Some(name) = path.as_ident() {
-            PathResult::from_resolution(self.resolve_name(db, name))
-        } else if path.is_self() {
-            PathResult::from_resolution(self.resolve_name(db, &SELF_PARAM))
-        } else {
-            let (item_map, module) = match self.module() {
-                Some(it) => it,
-                None => return PathResult::empty(),
-            };
-            let (module_res, segment_index) = item_map.resolve_path(db, module, path);
-
-            let def = module_res.map(Resolution::Def);
-
-            if let Some(index) = segment_index {
-                PathResult::from_resolution_with_index(def, index)
-            } else {
-                PathResult::from_resolution(def)
-            }
-        }
-    }
-
-    /// Returns the fully resolved path if we were able to resolve it.
-    /// otherwise returns `PerNs::none`
-    pub(crate) fn resolve_path_without_assoc_items(
+    /// Resolve known struct from std, like `std::boxed::Box`
+    pub(crate) fn resolve_known_struct(
         &self,
         db: &impl HirDatabase,
         path: &Path,
-    ) -> PerNs<Resolution> {
-        // into_fully_resolved() returns the fully resolved path or PerNs::none() otherwise
-        self.resolve_path_segments(db, path).into_fully_resolved()
+    ) -> Option<Struct> {
+        let res = self.resolve_module_path(db, path).take_types()?;
+        match res {
+            ModuleDefId::AdtId(AdtId::StructId(it)) => Some(it.into()),
+            _ => None,
+        }
     }
 
-    pub(crate) fn all_names(&self, db: &impl HirDatabase) -> FxHashMap<Name, PerNs<Resolution>> {
-        let mut names = FxHashMap::default();
-        for scope in self.scopes.iter().rev() {
-            scope.collect_names(db, &mut |name, res| {
-                let current: &mut PerNs<Resolution> = names.entry(name).or_default();
-                if current.types.is_none() {
-                    current.types = res.types;
-                }
-                if current.values.is_none() {
-                    current.values = res.values;
-                }
-            });
+    /// Resolve known enum from std, like `std::result::Result`
+    pub(crate) fn resolve_known_enum(&self, db: &impl HirDatabase, path: &Path) -> Option<Enum> {
+        let res = self.resolve_module_path(db, path).take_types()?;
+        match res {
+            ModuleDefId::AdtId(AdtId::EnumId(it)) => Some(it.into()),
+            _ => None,
         }
-        names
+    }
+
+    /// pub only for source-binder
+    pub(crate) fn resolve_module_path(&self, db: &impl HirDatabase, path: &Path) -> PerNs {
+        let (item_map, module) = match self.module() {
+            Some(it) => it,
+            None => return PerNs::none(),
+        };
+        let (module_res, segment_index) = item_map.resolve_path(db, module, path);
+        if segment_index.is_some() {
+            return PerNs::none();
+        }
+        module_res
+    }
+
+    pub(crate) fn resolve_path_in_type_ns(
+        &self,
+        db: &impl HirDatabase,
+        path: &Path,
+    ) -> Option<(TypeNs, Option<usize>)> {
+        if path.is_type_relative() {
+            return None;
+        }
+        let first_name = &path.segments.first()?.name;
+        let skip_to_mod = path.kind != PathKind::Plain;
+        for scope in self.scopes.iter().rev() {
+            match scope {
+                Scope::ExprScope(_) => continue,
+                Scope::GenericParams(_) | Scope::ImplBlockScope(_) if skip_to_mod => continue,
+
+                Scope::GenericParams(params) => {
+                    if let Some(param) = params.find_by_name(first_name) {
+                        let idx = if path.segments.len() == 1 { None } else { Some(1) };
+                        return Some((TypeNs::GenericParam(param.idx), idx));
+                    }
+                }
+                Scope::ImplBlockScope(impl_) => {
+                    if first_name == &name::SELF_TYPE {
+                        let idx = if path.segments.len() == 1 { None } else { Some(1) };
+                        return Some((TypeNs::SelfType(*impl_), idx));
+                    }
+                }
+                Scope::AdtScope(adt) => {
+                    if first_name == &name::SELF_TYPE {
+                        let idx = if path.segments.len() == 1 { None } else { Some(1) };
+                        return Some((TypeNs::AdtSelfType(*adt), idx));
+                    }
+                }
+                Scope::ModuleScope(m) => {
+                    let (module_def, idx) = m.crate_def_map.resolve_path(db, m.module_id, path);
+                    let res = match module_def.take_types()? {
+                        ModuleDefId::AdtId(it) => TypeNs::Adt(it.into()),
+                        ModuleDefId::EnumVariantId(it) => TypeNs::EnumVariant(it.into()),
+
+                        ModuleDefId::TypeAliasId(it) => TypeNs::TypeAlias(it.into()),
+                        ModuleDefId::BuiltinType(it) => TypeNs::BuiltinType(it),
+
+                        ModuleDefId::TraitId(it) => TypeNs::Trait(it.into()),
+
+                        ModuleDefId::FunctionId(_)
+                        | ModuleDefId::ConstId(_)
+                        | ModuleDefId::StaticId(_)
+                        | ModuleDefId::ModuleId(_) => return None,
+                    };
+                    return Some((res, idx));
+                }
+            }
+        }
+        None
+    }
+
+    pub(crate) fn resolve_path_in_type_ns_fully(
+        &self,
+        db: &impl HirDatabase,
+        path: &Path,
+    ) -> Option<TypeNs> {
+        let (res, unresolved) = self.resolve_path_in_type_ns(db, path)?;
+        if unresolved.is_some() {
+            return None;
+        }
+        Some(res)
+    }
+
+    pub(crate) fn resolve_path_in_value_ns<'p>(
+        &self,
+        db: &impl HirDatabase,
+        path: &'p Path,
+    ) -> Option<ResolveValueResult> {
+        if path.is_type_relative() {
+            return None;
+        }
+        let n_segments = path.segments.len();
+        let tmp = name::SELF_PARAM;
+        let first_name = if path.is_self() { &tmp } else { &path.segments.first()?.name };
+        let skip_to_mod = path.kind != PathKind::Plain && !path.is_self();
+        for scope in self.scopes.iter().rev() {
+            match scope {
+                Scope::AdtScope(_)
+                | Scope::ExprScope(_)
+                | Scope::GenericParams(_)
+                | Scope::ImplBlockScope(_)
+                    if skip_to_mod =>
+                {
+                    continue
+                }
+
+                Scope::ExprScope(scope) if n_segments <= 1 => {
+                    let entry = scope
+                        .expr_scopes
+                        .entries(scope.scope_id)
+                        .iter()
+                        .find(|entry| entry.name() == first_name);
+
+                    if let Some(e) = entry {
+                        return Some(ResolveValueResult::ValueNs(ValueNs::LocalBinding(e.pat())));
+                    }
+                }
+                Scope::ExprScope(_) => continue,
+
+                Scope::GenericParams(params) if n_segments > 1 => {
+                    if let Some(param) = params.find_by_name(first_name) {
+                        let ty = TypeNs::GenericParam(param.idx);
+                        return Some(ResolveValueResult::Partial(ty, 1));
+                    }
+                }
+                Scope::GenericParams(_) => continue,
+
+                Scope::ImplBlockScope(impl_) if n_segments > 1 => {
+                    if first_name == &name::SELF_TYPE {
+                        let ty = TypeNs::SelfType(*impl_);
+                        return Some(ResolveValueResult::Partial(ty, 1));
+                    }
+                }
+                Scope::AdtScope(adt) if n_segments > 1 => {
+                    if first_name == &name::SELF_TYPE {
+                        let ty = TypeNs::AdtSelfType(*adt);
+                        return Some(ResolveValueResult::Partial(ty, 1));
+                    }
+                }
+                Scope::ImplBlockScope(_) | Scope::AdtScope(_) => continue,
+
+                Scope::ModuleScope(m) => {
+                    let (module_def, idx) = m.crate_def_map.resolve_path(db, m.module_id, path);
+                    return match idx {
+                        None => {
+                            let value = match module_def.take_values()? {
+                                ModuleDefId::FunctionId(it) => ValueNs::Function(it.into()),
+                                ModuleDefId::AdtId(AdtId::StructId(it)) => {
+                                    ValueNs::Struct(it.into())
+                                }
+                                ModuleDefId::EnumVariantId(it) => ValueNs::EnumVariant(it.into()),
+                                ModuleDefId::ConstId(it) => ValueNs::Const(it.into()),
+                                ModuleDefId::StaticId(it) => ValueNs::Static(it.into()),
+
+                                ModuleDefId::AdtId(AdtId::EnumId(_))
+                                | ModuleDefId::AdtId(AdtId::UnionId(_))
+                                | ModuleDefId::TraitId(_)
+                                | ModuleDefId::TypeAliasId(_)
+                                | ModuleDefId::BuiltinType(_)
+                                | ModuleDefId::ModuleId(_) => return None,
+                            };
+                            Some(ResolveValueResult::ValueNs(value))
+                        }
+                        Some(idx) => {
+                            let ty = match module_def.take_types()? {
+                                ModuleDefId::AdtId(it) => TypeNs::Adt(it.into()),
+                                ModuleDefId::TraitId(it) => TypeNs::Trait(it.into()),
+                                ModuleDefId::TypeAliasId(it) => TypeNs::TypeAlias(it.into()),
+                                ModuleDefId::BuiltinType(it) => TypeNs::BuiltinType(it),
+
+                                ModuleDefId::ModuleId(_)
+                                | ModuleDefId::FunctionId(_)
+                                | ModuleDefId::EnumVariantId(_)
+                                | ModuleDefId::ConstId(_)
+                                | ModuleDefId::StaticId(_) => return None,
+                            };
+                            Some(ResolveValueResult::Partial(ty, idx))
+                        }
+                    };
+                }
+            }
+        }
+        None
+    }
+
+    pub(crate) fn resolve_path_in_value_ns_fully(
+        &self,
+        db: &impl HirDatabase,
+        path: &Path,
+    ) -> Option<ValueNs> {
+        match self.resolve_path_in_value_ns(db, path)? {
+            ResolveValueResult::ValueNs(it) => Some(it),
+            ResolveValueResult::Partial(..) => None,
+        }
+    }
+
+    pub(crate) fn resolve_path_as_macro(
+        &self,
+        db: &impl DefDatabase,
+        path: &Path,
+    ) -> Option<MacroDef> {
+        let (item_map, module) = self.module()?;
+        item_map.resolve_path(db, module, path).0.get_macros().map(MacroDef::from)
+    }
+
+    pub(crate) fn process_all_names(
+        &self,
+        db: &impl HirDatabase,
+        f: &mut dyn FnMut(Name, ScopeDef),
+    ) {
+        for scope in self.scopes.iter().rev() {
+            scope.process_names(db, f);
+        }
     }
 
     pub(crate) fn traits_in_scope(&self, db: &impl HirDatabase) -> FxHashSet<Trait> {
@@ -202,9 +334,10 @@ impl Resolver {
             if let Scope::ModuleScope(m) = scope {
                 if let Some(prelude) = m.crate_def_map.prelude() {
                     let prelude_def_map = db.crate_def_map(prelude.krate);
-                    traits.extend(prelude_def_map[prelude.module_id].scope.traits());
+                    traits
+                        .extend(prelude_def_map[prelude.module_id].scope.traits().map(Trait::from));
                 }
-                traits.extend(m.crate_def_map[m.module_id].scope.traits());
+                traits.extend(m.crate_def_map[m.module_id].scope.traits().map(Trait::from));
             }
         }
         traits
@@ -219,7 +352,7 @@ impl Resolver {
     }
 
     pub(crate) fn krate(&self) -> Option<Crate> {
-        self.module().map(|t| t.0.krate())
+        self.module().map(|t| Crate { crate_id: t.0.krate() })
     }
 
     pub(crate) fn where_predicates_in_scope<'a>(
@@ -232,6 +365,13 @@ impl Resolver {
                 _ => None,
             })
             .flat_map(|params| params.where_predicates.iter())
+    }
+
+    pub(crate) fn generic_def(&self) -> Option<crate::generics::GenericDef> {
+        self.scopes.iter().find_map(|scope| match scope {
+            Scope::GenericParams(params) => Some(params.def),
+            _ => None,
+        })
     }
 }
 
@@ -259,48 +399,39 @@ impl Resolver {
 
     pub(crate) fn push_expr_scope(
         self,
+        owner: DefWithBody,
         expr_scopes: Arc<ExprScopes>,
         scope_id: ScopeId,
     ) -> Resolver {
-        self.push_scope(Scope::ExprScope(ExprScope { expr_scopes, scope_id }))
+        self.push_scope(Scope::ExprScope(ExprScope { owner, expr_scopes, scope_id }))
+    }
+}
+
+/// For IDE only
+pub enum ScopeDef {
+    ModuleDef(ModuleDef),
+    MacroDef(MacroDef),
+    GenericParam(u32),
+    ImplSelfType(ImplBlock),
+    AdtSelfType(Adt),
+    Local(Local),
+    Unknown,
+}
+
+impl From<PerNs> for ScopeDef {
+    fn from(def: PerNs) -> Self {
+        def.take_types()
+            .or_else(|| def.take_values())
+            .map(|module_def_id| ScopeDef::ModuleDef(module_def_id.into()))
+            .or_else(|| {
+                def.get_macros().map(|macro_def_id| ScopeDef::MacroDef(macro_def_id.into()))
+            })
+            .unwrap_or(ScopeDef::Unknown)
     }
 }
 
 impl Scope {
-    fn resolve_name(&self, db: &impl HirDatabase, name: &Name) -> PerNs<Resolution> {
-        match self {
-            Scope::ModuleScope(m) => {
-                if name == &SELF_PARAM {
-                    PerNs::types(Resolution::Def(m.crate_def_map.mk_module(m.module_id).into()))
-                } else {
-                    m.crate_def_map
-                        .resolve_name_in_module(db, m.module_id, name)
-                        .map(Resolution::Def)
-                }
-            }
-            Scope::GenericParams(gp) => match gp.find_by_name(name) {
-                Some(gp) => PerNs::types(Resolution::GenericParam(gp.idx)),
-                None => PerNs::none(),
-            },
-            Scope::ImplBlockScope(i) => {
-                if name == &SELF_TYPE {
-                    PerNs::types(Resolution::SelfType(*i))
-                } else {
-                    PerNs::none()
-                }
-            }
-            Scope::ExprScope(e) => {
-                let entry =
-                    e.expr_scopes.entries(e.scope_id).iter().find(|entry| entry.name() == name);
-                match entry {
-                    Some(e) => PerNs::values(Resolution::LocalBinding(e.pat())),
-                    None => PerNs::none(),
-                }
-            }
-        }
-    }
-
-    fn collect_names(&self, db: &impl HirDatabase, f: &mut dyn FnMut(Name, PerNs<Resolution>)) {
+    fn process_names(&self, db: &impl HirDatabase, f: &mut dyn FnMut(Name, ScopeDef)) {
         match self {
             Scope::ModuleScope(m) => {
                 // FIXME: should we provide `self` here?
@@ -311,29 +442,36 @@ impl Scope {
                 //     }),
                 // );
                 m.crate_def_map[m.module_id].scope.entries().for_each(|(name, res)| {
-                    f(name.clone(), res.def.map(Resolution::Def));
+                    f(name.clone(), res.def.into());
                 });
-                m.crate_def_map.extern_prelude().iter().for_each(|(name, def)| {
-                    f(name.clone(), PerNs::types(Resolution::Def(*def)));
+                m.crate_def_map[m.module_id].scope.legacy_macros().for_each(|(name, macro_)| {
+                    f(name.clone(), ScopeDef::MacroDef(macro_.into()));
+                });
+                m.crate_def_map.extern_prelude().iter().for_each(|(name, &def)| {
+                    f(name.clone(), ScopeDef::ModuleDef(def.into()));
                 });
                 if let Some(prelude) = m.crate_def_map.prelude() {
                     let prelude_def_map = db.crate_def_map(prelude.krate);
                     prelude_def_map[prelude.module_id].scope.entries().for_each(|(name, res)| {
-                        f(name.clone(), res.def.map(Resolution::Def));
+                        f(name.clone(), res.def.into());
                     });
                 }
             }
             Scope::GenericParams(gp) => {
                 for param in &gp.params {
-                    f(param.name.clone(), PerNs::types(Resolution::GenericParam(param.idx)))
+                    f(param.name.clone(), ScopeDef::GenericParam(param.idx))
                 }
             }
             Scope::ImplBlockScope(i) => {
-                f(SELF_TYPE, PerNs::types(Resolution::SelfType(*i)));
+                f(name::SELF_TYPE, ScopeDef::ImplSelfType(*i));
             }
-            Scope::ExprScope(e) => {
-                e.expr_scopes.entries(e.scope_id).iter().for_each(|e| {
-                    f(e.name().clone(), PerNs::values(Resolution::LocalBinding(e.pat())));
+            Scope::AdtScope(i) => {
+                f(name::SELF_TYPE, ScopeDef::AdtSelfType(*i));
+            }
+            Scope::ExprScope(scope) => {
+                scope.expr_scopes.entries(scope.scope_id).iter().for_each(|e| {
+                    let local = Local { parent: scope.owner, pat_id: e.pat() };
+                    f(e.name().clone(), ScopeDef::Local(local));
                 });
             }
         }

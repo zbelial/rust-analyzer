@@ -1,3 +1,5 @@
+//! FIXME: write short doc here
+
 use ra_db::{CrateId, FileId, FilePosition};
 
 use crate::{db::RootDatabase, NavigationTarget};
@@ -5,7 +7,11 @@ use crate::{db::RootDatabase, NavigationTarget};
 /// This returns `Vec` because a module may be included from several places. We
 /// don't handle this case yet though, so the Vec has length at most one.
 pub(crate) fn parent_module(db: &RootDatabase, position: FilePosition) -> Vec<NavigationTarget> {
-    let module = match hir::source_binder::module_from_position(db, position) {
+    let src = hir::ModuleSource::from_position(db, position);
+    let module = match hir::Module::from_definition(
+        db,
+        hir::Source { file_id: position.file_id.into(), ast: src },
+    ) {
         None => return Vec::new(),
         Some(it) => it,
     };
@@ -15,14 +21,13 @@ pub(crate) fn parent_module(db: &RootDatabase, position: FilePosition) -> Vec<Na
 
 /// Returns `Vec` for the same reason as `parent_module`
 pub(crate) fn crate_for(db: &RootDatabase, file_id: FileId) -> Vec<CrateId> {
-    let module = match hir::source_binder::module_from_file_id(db, file_id) {
-        Some(it) => it,
-        None => return Vec::new(),
-    };
-    let krate = match module.krate(db) {
-        Some(it) => it,
-        None => return Vec::new(),
-    };
+    let src = hir::ModuleSource::from_file_id(db, file_id);
+    let module =
+        match hir::Module::from_definition(db, hir::Source { file_id: file_id.into(), ast: src }) {
+            Some(it) => it,
+            None => return Vec::new(),
+        };
+    let krate = module.krate();
     vec![krate.crate_id()]
 }
 
@@ -33,6 +38,7 @@ mod tests {
         AnalysisChange, CrateGraph,
         Edition::Edition2018,
     };
+    use ra_cfg::CfgOptions;
 
     #[test]
     fn test_resolve_parent_module() {
@@ -80,7 +86,7 @@ mod tests {
         assert!(host.analysis().crate_for(mod_file).unwrap().is_empty());
 
         let mut crate_graph = CrateGraph::default();
-        let crate_id = crate_graph.add_crate_root(root_file, Edition2018);
+        let crate_id = crate_graph.add_crate_root(root_file, Edition2018, CfgOptions::default());
         let mut change = AnalysisChange::new();
         change.set_crate_graph(crate_graph);
         host.apply_change(change);

@@ -1,10 +1,8 @@
 //! Various extension methods to ast Nodes, which are hard to code-generate.
 //! Extensions for various expressions live in a sibling `expr_extensions` module.
 
-use itertools::Itertools;
-
 use crate::{
-    ast::{self, child_opt, children, AstNode, SyntaxNode},
+    ast::{self, child_opt, children, AstNode, AttrInput, SyntaxNode},
     SmolStr, SyntaxElement,
     SyntaxKind::*,
     SyntaxToken, T,
@@ -21,69 +19,54 @@ impl ast::NameRef {
     pub fn text(&self) -> &SmolStr {
         text_of_first_token(self.syntax())
     }
+
+    pub fn as_tuple_field(&self) -> Option<usize> {
+        self.syntax().children_with_tokens().find_map(|c| {
+            if c.kind() == SyntaxKind::INT_NUMBER {
+                c.as_token().and_then(|tok| tok.text().as_str().parse().ok())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 fn text_of_first_token(node: &SyntaxNode) -> &SmolStr {
-    node.green().children().first().and_then(|it| it.as_token()).unwrap().text()
+    node.green().children().next().and_then(|it| it.into_token()).unwrap().text()
 }
 
 impl ast::Attr {
-    pub fn is_inner(&self) -> bool {
-        let tt = match self.value() {
-            None => return false,
-            Some(tt) => tt,
-        };
-
-        let prev = match tt.syntax().prev_sibling() {
-            None => return false,
-            Some(prev) => prev,
-        };
-
-        prev.kind() == T![!]
-    }
-
-    pub fn as_atom(&self) -> Option<SmolStr> {
-        let tt = self.value()?;
-        let (_bra, attr, _ket) = tt.syntax().children_with_tokens().collect_tuple()?;
-        if attr.kind() == IDENT {
-            Some(attr.as_token()?.text().clone())
-        } else {
-            None
+    pub fn as_simple_atom(&self) -> Option<SmolStr> {
+        match self.input() {
+            None => self.simple_name(),
+            Some(_) => None,
         }
     }
 
-    pub fn as_call(&self) -> Option<(SmolStr, ast::TokenTree)> {
-        let tt = self.value()?;
-        let (_bra, attr, args, _ket) = tt.syntax().children_with_tokens().collect_tuple()?;
-        let args = ast::TokenTree::cast(args.as_node()?.clone())?;
-        if attr.kind() == IDENT {
-            Some((attr.as_token()?.text().clone(), args))
-        } else {
-            None
+    pub fn as_simple_call(&self) -> Option<(SmolStr, ast::TokenTree)> {
+        match self.input() {
+            Some(AttrInput::TokenTree(tt)) => Some((self.simple_name()?, tt)),
+            _ => None,
         }
     }
 
-    pub fn as_named(&self) -> Option<SmolStr> {
-        let tt = self.value()?;
-        let attr = tt.syntax().children_with_tokens().nth(1)?;
-        if attr.kind() == IDENT {
-            Some(attr.as_token()?.text().clone())
-        } else {
-            None
+    pub fn as_simple_key_value(&self) -> Option<(SmolStr, SmolStr)> {
+        match self.input() {
+            Some(AttrInput::Literal(lit)) => {
+                let key = self.simple_name()?;
+                // FIXME: escape? raw string?
+                let value = lit.syntax().first_token()?.text().trim_matches('"').into();
+                Some((key, value))
+            }
+            _ => None,
         }
     }
 
-    pub fn as_key_value(&self) -> Option<(SmolStr, SmolStr)> {
-        let tt = self.value()?;
-        let tt_node = tt.syntax();
-        let attr = tt_node.children_with_tokens().nth(1)?;
-        if attr.kind() == IDENT {
-            let key = attr.as_token()?.text().clone();
-            let val_node = tt_node.children_with_tokens().find(|t| t.kind() == STRING)?;
-            let val = val_node.as_token()?.text().trim_start_matches('"').trim_end_matches('"');
-            Some((key, SmolStr::new(val)))
-        } else {
-            None
+    pub fn simple_name(&self) -> Option<SmolStr> {
+        let path = self.path()?;
+        match (path.segment(), path.qualifier()) {
+            (Some(segment), None) => Some(segment.syntax().first_token()?.text().clone()),
+            _ => None,
         }
     }
 }
@@ -195,16 +178,16 @@ impl ast::ImplBlock {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StructKind {
-    Tuple(ast::PosFieldDefList),
-    Named(ast::NamedFieldDefList),
+    Tuple(ast::TupleFieldDefList),
+    Named(ast::RecordFieldDefList),
     Unit,
 }
 
 impl StructKind {
     fn from_node<N: AstNode>(node: &N) -> StructKind {
-        if let Some(nfdl) = child_opt::<_, ast::NamedFieldDefList>(node) {
+        if let Some(nfdl) = child_opt::<_, ast::RecordFieldDefList>(node) {
             StructKind::Named(nfdl)
-        } else if let Some(pfl) = child_opt::<_, ast::PosFieldDefList>(node) {
+        } else if let Some(pfl) = child_opt::<_, ast::TupleFieldDefList>(node) {
             StructKind::Tuple(pfl)
         } else {
             StructKind::Unit
@@ -373,12 +356,62 @@ impl ast::LifetimeParam {
     }
 }
 
+impl ast::TypeParam {
+    pub fn colon_token(&self) -> Option<SyntaxToken> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(|it| it.into_token())
+            .find(|it| it.kind() == T![:])
+    }
+}
+
 impl ast::WherePred {
     pub fn lifetime_token(&self) -> Option<SyntaxToken> {
         self.syntax()
             .children_with_tokens()
             .filter_map(|it| it.into_token())
             .find(|it| it.kind() == LIFETIME)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TypeBoundKind {
+    /// Trait
+    PathType(ast::PathType),
+    /// for<'a> ...
+    ForType(ast::ForType),
+    /// 'a
+    Lifetime(ast::SyntaxToken),
+}
+
+impl ast::TypeBound {
+    pub fn kind(&self) -> TypeBoundKind {
+        if let Some(path_type) = children(self).next() {
+            TypeBoundKind::PathType(path_type)
+        } else if let Some(for_type) = children(self).next() {
+            TypeBoundKind::ForType(for_type)
+        } else if let Some(lifetime) = self.lifetime() {
+            TypeBoundKind::Lifetime(lifetime)
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn lifetime(&self) -> Option<SyntaxToken> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(|it| it.into_token())
+            .find(|it| it.kind() == LIFETIME)
+    }
+
+    pub fn question_mark_token(&self) -> Option<SyntaxToken> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(|it| it.into_token())
+            .find(|it| it.kind() == T![?])
+    }
+    pub fn has_question_mark(&self) -> bool {
+        self.question_mark_token().is_some()
     }
 }
 

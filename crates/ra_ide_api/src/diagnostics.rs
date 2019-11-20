@@ -1,15 +1,14 @@
+//! FIXME: write short doc here
+
 use std::cell::RefCell;
 
-use hir::{
-    diagnostics::{AstDiagnostic, Diagnostic as _, DiagnosticSink},
-    source_binder,
-};
+use hir::diagnostics::{AstDiagnostic, Diagnostic as _, DiagnosticSink};
 use itertools::Itertools;
-use ra_assists::ast_editor::{AstBuilder, AstEditor};
-use ra_db::SourceDatabase;
+use ra_db::{RelativePath, SourceDatabase, SourceDatabaseExt};
 use ra_prof::profile;
 use ra_syntax::{
-    ast::{self, AstNode, NamedField},
+    algo,
+    ast::{self, make, AstNode},
     Location, SyntaxNode, TextRange, T,
 };
 use ra_text_edit::{TextEdit, TextEditBuilder};
@@ -48,8 +47,14 @@ pub(crate) fn diagnostics(db: &RootDatabase, file_id: FileId) -> Vec<Diagnostic>
         })
     })
     .on::<hir::diagnostics::UnresolvedModule, _>(|d| {
-        let source_root = db.file_source_root(d.source().file_id.original_file(db));
-        let create_file = FileSystemEdit::CreateFile { source_root, path: d.candidate.clone() };
+        let original_file = d.source().file_id.original_file(db);
+        let source_root = db.file_source_root(original_file);
+        let path = db
+            .file_relative_path(original_file)
+            .parent()
+            .unwrap_or_else(|| RelativePath::new(""))
+            .join(&d.candidate);
+        let create_file = FileSystemEdit::CreateFile { source_root, path };
         let fix = SourceChange::file_system_edit("create module", create_file);
         res.borrow_mut().push(Diagnostic {
             range: d.highlight_range(),
@@ -59,14 +64,15 @@ pub(crate) fn diagnostics(db: &RootDatabase, file_id: FileId) -> Vec<Diagnostic>
         })
     })
     .on::<hir::diagnostics::MissingFields, _>(|d| {
-        let node = d.ast(db);
-        let mut ast_editor = AstEditor::new(node);
+        let mut field_list = d.ast(db);
         for f in d.missed_fields.iter() {
-            ast_editor.append_field(&AstBuilder::<NamedField>::from_name(f));
+            let field = make::record_field(make::name_ref(&f.to_string()), Some(make::expr_unit()));
+            field_list = field_list.append_field(&field);
         }
 
         let mut builder = TextEditBuilder::default();
-        ast_editor.into_text_edit(&mut builder);
+        algo::diff(&d.ast(db).syntax(), &field_list.syntax()).into_text_edit(&mut builder);
+
         let fix =
             SourceChange::source_file_edit_from("fill struct fields", file_id, builder.finish());
         res.borrow_mut().push(Diagnostic {
@@ -75,8 +81,23 @@ pub(crate) fn diagnostics(db: &RootDatabase, file_id: FileId) -> Vec<Diagnostic>
             severity: Severity::Error,
             fix: Some(fix),
         })
+    })
+    .on::<hir::diagnostics::MissingOkInTailExpr, _>(|d| {
+        let node = d.ast(db);
+        let replacement = format!("Ok({})", node.syntax());
+        let edit = TextEdit::replace(node.syntax().text_range(), replacement);
+        let fix = SourceChange::source_file_edit_from("wrap with ok", file_id, edit);
+        res.borrow_mut().push(Diagnostic {
+            range: d.highlight_range(),
+            message: d.message(),
+            severity: Severity::Error,
+            fix: Some(fix),
+        })
     });
-    if let Some(m) = source_binder::module_from_file_id(db, file_id) {
+    let source_file = db.parse(file_id).tree();
+    let src =
+        hir::Source { file_id: file_id.into(), ast: hir::ModuleSource::SourceFile(source_file) };
+    if let Some(m) = hir::Module::from_definition(db, src) {
         m.diagnostics(db, &mut sink);
     };
     drop(sink);
@@ -129,9 +150,7 @@ fn text_edit_for_remove_unnecessary_braces_with_self_in_use_statement(
         let start = use_tree_list_node.prev_sibling_or_token()?.text_range().start();
         let end = use_tree_list_node.text_range().end();
         let range = TextRange::from_to(start, end);
-        let mut edit_builder = TextEditBuilder::default();
-        edit_builder.delete(range);
-        return Some(edit_builder.finish());
+        return Some(TextEdit::delete(range));
     }
     None
 }
@@ -141,20 +160,20 @@ fn check_struct_shorthand_initialization(
     file_id: FileId,
     node: &SyntaxNode,
 ) -> Option<()> {
-    let struct_lit = ast::StructLit::cast(node.clone())?;
-    let named_field_list = struct_lit.named_field_list()?;
-    for named_field in named_field_list.fields() {
-        if let (Some(name_ref), Some(expr)) = (named_field.name_ref(), named_field.expr()) {
+    let record_lit = ast::RecordLit::cast(node.clone())?;
+    let record_field_list = record_lit.record_field_list()?;
+    for record_field in record_field_list.fields() {
+        if let (Some(name_ref), Some(expr)) = (record_field.name_ref(), record_field.expr()) {
             let field_name = name_ref.syntax().text().to_string();
             let field_expr = expr.syntax().text().to_string();
             if field_name == field_expr {
                 let mut edit_builder = TextEditBuilder::default();
-                edit_builder.delete(named_field.syntax().text_range());
-                edit_builder.insert(named_field.syntax().text_range().start(), field_name);
+                edit_builder.delete(record_field.syntax().text_range());
+                edit_builder.insert(record_field.syntax().text_range().start(), field_name);
                 let edit = edit_builder.finish();
 
                 acc.push(Diagnostic {
-                    range: named_field.syntax().text_range(),
+                    range: record_field.syntax().text_range(),
                     message: "Shorthand struct initialization".to_string(),
                     severity: Severity::WeakWarning,
                     fix: Some(SourceChange::source_file_edit(
@@ -170,11 +189,12 @@ fn check_struct_shorthand_initialization(
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_debug_snapshot_matches;
+    use insta::assert_debug_snapshot;
+    use join_to_string::join;
     use ra_syntax::SourceFile;
     use test_utils::assert_eq_text;
 
-    use crate::mock_analysis::single_file;
+    use crate::mock_analysis::{analysis_and_position, single_file};
 
     use super::*;
 
@@ -203,6 +223,48 @@ mod tests {
         assert_eq_text!(after, &actual);
     }
 
+    /// Takes a multi-file input fixture with annotated cursor positions,
+    /// and checks that:
+    ///  * a diagnostic is produced
+    ///  * this diagnostic touches the input cursor position
+    ///  * that the contents of the file containing the cursor match `after` after the diagnostic fix is applied
+    fn check_apply_diagnostic_fix_from_position(fixture: &str, after: &str) {
+        let (analysis, file_position) = analysis_and_position(fixture);
+        let diagnostic = analysis.diagnostics(file_position.file_id).unwrap().pop().unwrap();
+        let mut fix = diagnostic.fix.unwrap();
+        let edit = fix.source_file_edits.pop().unwrap().edit;
+        let target_file_contents = analysis.file_text(file_position.file_id).unwrap();
+        let actual = edit.apply(&target_file_contents);
+
+        // Strip indent and empty lines from `after`, to match the behaviour of
+        // `parse_fixture` called from `analysis_and_position`.
+        let margin = fixture
+            .lines()
+            .filter(|it| it.trim_start().starts_with("//-"))
+            .map(|it| it.len() - it.trim_start().len())
+            .next()
+            .expect("empty fixture");
+        let after = join(after.lines().filter_map(|line| {
+            if line.len() > margin {
+                Some(&line[margin..])
+            } else {
+                None
+            }
+        }))
+        .separator("\n")
+        .suffix("\n")
+        .to_string();
+
+        assert_eq_text!(&after, &actual);
+        assert!(
+            diagnostic.range.start() <= file_position.offset
+                && diagnostic.range.end() >= file_position.offset,
+            "diagnostic range {} does not touch cursor position {}",
+            diagnostic.range,
+            file_position.offset
+        );
+    }
+
     fn check_apply_diagnostic_fix(before: &str, after: &str) {
         let (analysis, file_id) = single_file(before);
         let diagnostic = analysis.diagnostics(file_id).unwrap().pop().unwrap();
@@ -212,10 +274,167 @@ mod tests {
         assert_eq_text!(after, &actual);
     }
 
+    /// Takes a multi-file input fixture with annotated cursor position and checks that no diagnostics
+    /// apply to the file containing the cursor.
+    fn check_no_diagnostic_for_target_file(fixture: &str) {
+        let (analysis, file_position) = analysis_and_position(fixture);
+        let diagnostics = analysis.diagnostics(file_position.file_id).unwrap();
+        assert_eq!(diagnostics.len(), 0);
+    }
+
     fn check_no_diagnostic(content: &str) {
         let (analysis, file_id) = single_file(content);
         let diagnostics = analysis.diagnostics(file_id).unwrap();
         assert_eq!(diagnostics.len(), 0);
+    }
+
+    #[test]
+    fn test_wrap_return_type() {
+        let before = r#"
+            //- /main.rs
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            fn div(x: i32, y: i32) -> Result<i32, String> {
+                if y == 0 {
+                    return Err("div by zero".into());
+                }
+                x / y<|>
+            }
+
+            //- /std/lib.rs
+            pub mod string {
+                pub struct String { }
+            }
+            pub mod result {
+                pub enum Result<T, E> { Ok(T), Err(E) }
+            }
+        "#;
+        let after = r#"
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            fn div(x: i32, y: i32) -> Result<i32, String> {
+                if y == 0 {
+                    return Err("div by zero".into());
+                }
+                Ok(x / y)
+            }
+        "#;
+        check_apply_diagnostic_fix_from_position(before, after);
+    }
+
+    #[test]
+    fn test_wrap_return_type_handles_generic_functions() {
+        let before = r#"
+            //- /main.rs
+            use std::result::Result::{self, Ok, Err};
+
+            fn div<T>(x: T) -> Result<T, i32> {
+                if x == 0 {
+                    return Err(7);
+                }
+                <|>x
+            }
+
+            //- /std/lib.rs
+            pub mod result {
+                pub enum Result<T, E> { Ok(T), Err(E) }
+            }
+        "#;
+        let after = r#"
+            use std::result::Result::{self, Ok, Err};
+
+            fn div<T>(x: T) -> Result<T, i32> {
+                if x == 0 {
+                    return Err(7);
+                }
+                Ok(x)
+            }
+        "#;
+        check_apply_diagnostic_fix_from_position(before, after);
+    }
+
+    #[test]
+    fn test_wrap_return_type_handles_type_aliases() {
+        let before = r#"
+            //- /main.rs
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            type MyResult<T> = Result<T, String>;
+
+            fn div(x: i32, y: i32) -> MyResult<i32> {
+                if y == 0 {
+                    return Err("div by zero".into());
+                }
+                x <|>/ y
+            }
+
+            //- /std/lib.rs
+            pub mod string {
+                pub struct String { }
+            }
+            pub mod result {
+                pub enum Result<T, E> { Ok(T), Err(E) }
+            }
+        "#;
+        let after = r#"
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            type MyResult<T> = Result<T, String>;
+            fn div(x: i32, y: i32) -> MyResult<i32> {
+                if y == 0 {
+                    return Err("div by zero".into());
+                }
+                Ok(x / y)
+            }
+        "#;
+        check_apply_diagnostic_fix_from_position(before, after);
+    }
+
+    #[test]
+    fn test_wrap_return_type_not_applicable_when_expr_type_does_not_match_ok_type() {
+        let content = r#"
+            //- /main.rs
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            fn foo() -> Result<String, i32> {
+                0<|>
+            }
+
+            //- /std/lib.rs
+            pub mod string {
+                pub struct String { }
+            }
+            pub mod result {
+                pub enum Result<T, E> { Ok(T), Err(E) }
+            }
+        "#;
+        check_no_diagnostic_for_target_file(content);
+    }
+
+    #[test]
+    fn test_wrap_return_type_not_applicable_when_return_type_is_not_result() {
+        let content = r#"
+            //- /main.rs
+            use std::{string::String, result::Result::{self, Ok, Err}};
+
+            enum SomeOtherEnum {
+                Ok(i32),
+                Err(String),
+            }
+
+            fn foo() -> SomeOtherEnum {
+                0<|>
+            }
+
+            //- /std/lib.rs
+            pub mod string {
+                pub struct String { }
+            }
+            pub mod result {
+                pub enum Result<T, E> { Ok(T), Err(E) }
+            }
+        "#;
+        check_no_diagnostic_for_target_file(content);
     }
 
     #[test]
@@ -306,29 +525,29 @@ mod tests {
     fn test_unresolved_module_diagnostic() {
         let (analysis, file_id) = single_file("mod foo;");
         let diagnostics = analysis.diagnostics(file_id).unwrap();
-        assert_debug_snapshot_matches!(diagnostics, @r###"
-       ⋮[
-       ⋮    Diagnostic {
-       ⋮        message: "unresolved module",
-       ⋮        range: [0; 8),
-       ⋮        fix: Some(
-       ⋮            SourceChange {
-       ⋮                label: "create module",
-       ⋮                source_file_edits: [],
-       ⋮                file_system_edits: [
-       ⋮                    CreateFile {
-       ⋮                        source_root: SourceRootId(
-       ⋮                            0,
-       ⋮                        ),
-       ⋮                        path: "foo.rs",
-       ⋮                    },
-       ⋮                ],
-       ⋮                cursor_position: None,
-       ⋮            },
-       ⋮        ),
-       ⋮        severity: Error,
-       ⋮    },
-       ⋮]
+        assert_debug_snapshot!(diagnostics, @r###"
+        [
+            Diagnostic {
+                message: "unresolved module",
+                range: [0; 8),
+                fix: Some(
+                    SourceChange {
+                        label: "create module",
+                        source_file_edits: [],
+                        file_system_edits: [
+                            CreateFile {
+                                source_root: SourceRootId(
+                                    0,
+                                ),
+                                path: "foo.rs",
+                            },
+                        ],
+                        cursor_position: None,
+                    },
+                ),
+                severity: Error,
+            },
+        ]
         "###);
     }
 

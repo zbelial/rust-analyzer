@@ -8,30 +8,52 @@
 use std::iter;
 use std::sync::Arc;
 
-use super::{FnSig, GenericPredicate, ProjectionTy, Substs, TraitRef, Ty, TypeCtor};
+use hir_def::{
+    builtin_type::{BuiltinFloat, BuiltinInt, BuiltinType},
+    path::{GenericArg, PathSegment},
+    type_ref::{TypeBound, TypeRef},
+};
+
+use super::{
+    FnSig, GenericPredicate, ProjectionPredicate, ProjectionTy, Substs, TraitRef, Ty, TypeCtor,
+    TypeWalk,
+};
 use crate::{
     adt::VariantDef,
+    db::HirDatabase,
     generics::HasGenericParams,
     generics::{GenericDef, WherePredicate},
-    nameres::Namespace,
-    path::{GenericArg, PathSegment},
-    resolve::{Resolution, Resolver},
-    ty::AdtDef,
-    type_ref::TypeRef,
-    BuiltinType, Const, Enum, EnumVariant, Function, HirDatabase, ModuleDef, Path, Static, Struct,
-    StructField, Trait, TypeAlias, Union,
+    resolve::{Resolver, TypeNs},
+    ty::{
+        primitive::{FloatTy, IntTy, Uncertain},
+        Adt,
+    },
+    util::make_mut_slice,
+    Const, Enum, EnumVariant, Function, ModuleDef, Path, Static, Struct, StructField, Trait,
+    TypeAlias, Union,
 };
+
+// FIXME: this is only really used in `type_for_def`, which contains a bunch of
+// impossible cases. Perhaps we should recombine `TypeableDef` and `Namespace`
+// into a `AsTypeDef`, `AsValueDef` enums?
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Namespace {
+    Types,
+    Values,
+    // Note that only type inference uses this enum, and it doesn't care about macros.
+    // Macro,
+}
 
 impl Ty {
     pub(crate) fn from_hir(db: &impl HirDatabase, resolver: &Resolver, type_ref: &TypeRef) -> Self {
         match type_ref {
             TypeRef::Never => Ty::simple(TypeCtor::Never),
             TypeRef::Tuple(inner) => {
-                let inner_tys =
-                    inner.iter().map(|tr| Ty::from_hir(db, resolver, tr)).collect::<Vec<_>>();
+                let inner_tys: Arc<[Ty]> =
+                    inner.iter().map(|tr| Ty::from_hir(db, resolver, tr)).collect();
                 Ty::apply(
                     TypeCtor::Tuple { cardinality: inner_tys.len() as u16 },
-                    Substs(inner_tys.into()),
+                    Substs(inner_tys),
                 )
             }
             TypeRef::Path(path) => Ty::from_hir_path(db, resolver, path),
@@ -53,89 +75,205 @@ impl Ty {
             }
             TypeRef::Placeholder => Ty::Unknown,
             TypeRef::Fn(params) => {
-                let inner_tys =
-                    params.iter().map(|tr| Ty::from_hir(db, resolver, tr)).collect::<Vec<_>>();
-                let sig = Substs(inner_tys.into());
+                let sig = Substs(params.iter().map(|tr| Ty::from_hir(db, resolver, tr)).collect());
                 Ty::apply(TypeCtor::FnPtr { num_args: sig.len() as u16 - 1 }, sig)
+            }
+            TypeRef::DynTrait(bounds) => {
+                let self_ty = Ty::Bound(0);
+                let predicates = bounds
+                    .iter()
+                    .flat_map(|b| {
+                        GenericPredicate::from_type_bound(db, resolver, b, self_ty.clone())
+                    })
+                    .collect();
+                Ty::Dyn(predicates)
+            }
+            TypeRef::ImplTrait(bounds) => {
+                let self_ty = Ty::Bound(0);
+                let predicates = bounds
+                    .iter()
+                    .flat_map(|b| {
+                        GenericPredicate::from_type_bound(db, resolver, b, self_ty.clone())
+                    })
+                    .collect();
+                Ty::Opaque(predicates)
             }
             TypeRef::Error => Ty::Unknown,
         }
     }
 
-    pub(crate) fn from_hir_path(db: &impl HirDatabase, resolver: &Resolver, path: &Path) -> Self {
-        // Resolve the path (in type namespace)
-        let (resolution, remaining_index) = resolver.resolve_path_segments(db, path).into_inner();
-        let resolution = resolution.take_types();
+    /// This is only for `generic_predicates_for_param`, where we can't just
+    /// lower the self types of the predicates since that could lead to cycles.
+    /// So we just check here if the `type_ref` resolves to a generic param, and which.
+    fn from_hir_only_param(
+        db: &impl HirDatabase,
+        resolver: &Resolver,
+        type_ref: &TypeRef,
+    ) -> Option<u32> {
+        let path = match type_ref {
+            TypeRef::Path(path) => path,
+            _ => return None,
+        };
+        if let crate::PathKind::Type(_) = &path.kind {
+            return None;
+        }
+        if path.segments.len() > 1 {
+            return None;
+        }
+        let resolution = match resolver.resolve_path_in_type_ns(db, path) {
+            Some((it, None)) => it,
+            _ => return None,
+        };
+        if let TypeNs::GenericParam(idx) = resolution {
+            Some(idx)
+        } else {
+            None
+        }
+    }
 
-        let def = match resolution {
-            Some(Resolution::Def(def)) => def,
-            Some(Resolution::LocalBinding(..)) => {
-                // this should never happen
-                panic!("path resolved to local binding in type ns");
-            }
-            Some(Resolution::GenericParam(idx)) => {
-                if remaining_index.is_some() {
-                    // e.g. T::Item
-                    return Ty::Unknown;
-                }
-                return Ty::Param {
-                    idx,
-                    // FIXME: maybe return name in resolution?
-                    name: path
-                        .as_ident()
-                        .expect("generic param should be single-segment path")
-                        .clone(),
+    pub(crate) fn from_type_relative_path(
+        db: &impl HirDatabase,
+        resolver: &Resolver,
+        ty: Ty,
+        remaining_segments: &[PathSegment],
+    ) -> Ty {
+        if remaining_segments.len() == 1 {
+            // resolve unselected assoc types
+            let segment = &remaining_segments[0];
+            Ty::select_associated_type(db, resolver, ty, segment)
+        } else if remaining_segments.len() > 1 {
+            // FIXME report error (ambiguous associated type)
+            Ty::Unknown
+        } else {
+            ty
+        }
+    }
+
+    pub(crate) fn from_partly_resolved_hir_path(
+        db: &impl HirDatabase,
+        resolver: &Resolver,
+        resolution: TypeNs,
+        resolved_segment: &PathSegment,
+        remaining_segments: &[PathSegment],
+    ) -> Ty {
+        let ty = match resolution {
+            TypeNs::Trait(trait_) => {
+                let trait_ref =
+                    TraitRef::from_resolved_path(db, resolver, trait_, resolved_segment, None);
+                return if remaining_segments.len() == 1 {
+                    let segment = &remaining_segments[0];
+                    match trait_ref
+                        .trait_
+                        .associated_type_by_name_including_super_traits(db, &segment.name)
+                    {
+                        Some(associated_ty) => {
+                            // FIXME handle type parameters on the segment
+                            Ty::Projection(ProjectionTy {
+                                associated_ty,
+                                parameters: trait_ref.substs,
+                            })
+                        }
+                        None => {
+                            // FIXME: report error (associated type not found)
+                            Ty::Unknown
+                        }
+                    }
+                } else if remaining_segments.len() > 1 {
+                    // FIXME report error (ambiguous associated type)
+                    Ty::Unknown
+                } else {
+                    Ty::Dyn(Arc::new([GenericPredicate::Implemented(trait_ref)]))
                 };
             }
-            Some(Resolution::SelfType(impl_block)) => {
-                if remaining_index.is_some() {
-                    // e.g. Self::Item
-                    return Ty::Unknown;
-                }
-                return impl_block.target_ty(db);
+            TypeNs::GenericParam(idx) => {
+                // FIXME: maybe return name in resolution?
+                let name = resolved_segment.name.clone();
+                Ty::Param { idx, name }
             }
-            None => {
-                // path did not resolve
-                return Ty::Unknown;
+            TypeNs::SelfType(impl_block) => impl_block.target_ty(db),
+            TypeNs::AdtSelfType(adt) => adt.ty(db),
+
+            TypeNs::Adt(it) => Ty::from_hir_path_inner(db, resolver, resolved_segment, it.into()),
+            TypeNs::BuiltinType(it) => {
+                Ty::from_hir_path_inner(db, resolver, resolved_segment, it.into())
             }
+            TypeNs::TypeAlias(it) => {
+                Ty::from_hir_path_inner(db, resolver, resolved_segment, it.into())
+            }
+            // FIXME: report error
+            TypeNs::EnumVariant(_) => return Ty::Unknown,
         };
 
-        if let ModuleDef::Trait(trait_) = def {
-            let segment = match remaining_index {
-                None => path.segments.last().expect("resolved path has at least one element"),
-                Some(i) => &path.segments[i - 1],
-            };
-            let trait_ref = TraitRef::from_resolved_path(db, resolver, trait_, segment, None);
-            if let Some(remaining_index) = remaining_index {
-                if remaining_index == path.segments.len() - 1 {
-                    let segment = &path.segments[remaining_index];
-                    let associated_ty =
-                        match trait_ref.trait_.associated_type_by_name(db, segment.name.clone()) {
-                            Some(t) => t,
-                            None => {
-                                // associated type not found
-                                return Ty::Unknown;
-                            }
-                        };
-                    // FIXME handle type parameters on the segment
-                    Ty::Projection(ProjectionTy { associated_ty, parameters: trait_ref.substs })
-                } else {
-                    // FIXME more than one segment remaining, is this possible?
-                    Ty::Unknown
-                }
-            } else {
-                // FIXME dyn Trait without the dyn
-                Ty::Unknown
-            }
-        } else {
-            let typable: TypableDef = match def.into() {
-                None => return Ty::Unknown,
-                Some(it) => it,
-            };
-            let ty = db.type_for_def(typable, Namespace::Types);
-            let substs = Ty::substs_from_path(db, resolver, path, typable);
-            ty.subst(&substs)
+        Ty::from_type_relative_path(db, resolver, ty, remaining_segments)
+    }
+
+    pub(crate) fn from_hir_path(db: &impl HirDatabase, resolver: &Resolver, path: &Path) -> Ty {
+        // Resolve the path (in type namespace)
+        if let crate::PathKind::Type(type_ref) = &path.kind {
+            let ty = Ty::from_hir(db, resolver, &type_ref);
+            let remaining_segments = &path.segments[..];
+            return Ty::from_type_relative_path(db, resolver, ty, remaining_segments);
         }
+        let (resolution, remaining_index) = match resolver.resolve_path_in_type_ns(db, path) {
+            Some(it) => it,
+            None => return Ty::Unknown,
+        };
+        let (resolved_segment, remaining_segments) = match remaining_index {
+            None => (
+                path.segments.last().expect("resolved path has at least one element"),
+                &[] as &[PathSegment],
+            ),
+            Some(i) => (&path.segments[i - 1], &path.segments[i..]),
+        };
+        Ty::from_partly_resolved_hir_path(
+            db,
+            resolver,
+            resolution,
+            resolved_segment,
+            remaining_segments,
+        )
+    }
+
+    fn select_associated_type(
+        db: &impl HirDatabase,
+        resolver: &Resolver,
+        self_ty: Ty,
+        segment: &PathSegment,
+    ) -> Ty {
+        let param_idx = match self_ty {
+            Ty::Param { idx, .. } => idx,
+            _ => return Ty::Unknown, // Error: Ambiguous associated type
+        };
+        let def = match resolver.generic_def() {
+            Some(def) => def,
+            None => return Ty::Unknown, // this can't actually happen
+        };
+        let predicates = db.generic_predicates_for_param(def, param_idx);
+        let traits_from_env = predicates.iter().filter_map(|pred| match pred {
+            GenericPredicate::Implemented(tr) if tr.self_ty() == &self_ty => Some(tr.trait_),
+            _ => None,
+        });
+        let traits = traits_from_env.flat_map(|t| t.all_super_traits(db));
+        for t in traits {
+            if let Some(associated_ty) = t.associated_type_by_name(db, &segment.name) {
+                let substs =
+                    Substs::build_for_def(db, t).push(self_ty.clone()).fill_with_unknown().build();
+                // FIXME handle type parameters on the segment
+                return Ty::Projection(ProjectionTy { associated_ty, parameters: substs });
+            }
+        }
+        Ty::Unknown
+    }
+
+    fn from_hir_path_inner(
+        db: &impl HirDatabase,
+        resolver: &Resolver,
+        segment: &PathSegment,
+        typable: TypableDef,
+    ) -> Ty {
+        let ty = db.type_for_def(typable, Namespace::Types);
+        let substs = Ty::substs_from_path_segment(db, resolver, segment, typable);
+        ty.subst(&substs)
     }
 
     pub(super) fn substs_from_path_segment(
@@ -146,9 +284,7 @@ impl Ty {
     ) -> Substs {
         let def_generic: Option<GenericDef> = match resolved {
             TypableDef::Function(func) => Some(func.into()),
-            TypableDef::Struct(s) => Some(s.into()),
-            TypableDef::Union(u) => Some(u.into()),
-            TypableDef::Enum(e) => Some(e.into()),
+            TypableDef::Adt(adt) => Some(adt.into()),
             TypableDef::EnumVariant(var) => Some(var.parent_enum(db).into()),
             TypableDef::TypeAlias(t) => Some(t.into()),
             TypableDef::Const(_) | TypableDef::Static(_) | TypableDef::BuiltinType(_) => None,
@@ -167,9 +303,7 @@ impl Ty {
         let last = path.segments.last().expect("path should have at least one segment");
         let segment = match resolved {
             TypableDef::Function(_)
-            | TypableDef::Struct(_)
-            | TypableDef::Union(_)
-            | TypableDef::Enum(_)
+            | TypableDef::Adt(_)
             | TypableDef::Const(_)
             | TypableDef::Static(_)
             | TypableDef::TypeAlias(_)
@@ -203,9 +337,10 @@ pub(super) fn substs_from_path_segment(
     add_self_param: bool,
 ) -> Substs {
     let mut substs = Vec::new();
-    let def_generics = def_generic.map(|def| def.generic_params(db)).unwrap_or_default();
+    let def_generics = def_generic.map(|def| def.generic_params(db));
 
-    let parent_param_count = def_generics.count_parent_params();
+    let (parent_param_count, param_count) =
+        def_generics.map_or((0, 0), |g| (g.count_parent_params(), g.params.len()));
     substs.extend(iter::repeat(Ty::Unknown).take(parent_param_count));
     if add_self_param {
         // FIXME this add_self_param argument is kind of a hack: Traits have the
@@ -217,7 +352,7 @@ pub(super) fn substs_from_path_segment(
     if let Some(generic_args) = &segment.args_and_bindings {
         // if args are provided, it should be all of them, but we can't rely on that
         let self_param_correction = if add_self_param { 1 } else { 0 };
-        let param_count = def_generics.params.len() - self_param_correction;
+        let param_count = param_count - self_param_correction;
         for arg in generic_args.args.iter().take(param_count) {
             match arg {
                 GenericArg::Type(type_ref) => {
@@ -229,10 +364,10 @@ pub(super) fn substs_from_path_segment(
     }
     // add placeholders for args that were not provided
     let supplied_params = substs.len();
-    for _ in supplied_params..def_generics.count_params_including_parent() {
+    for _ in supplied_params..parent_param_count + param_count {
         substs.push(Ty::Unknown);
     }
-    assert_eq!(substs.len(), def_generics.count_params_including_parent());
+    assert_eq!(substs.len(), parent_param_count + param_count);
 
     // handle defaults
     if let Some(def_generic) = def_generic {
@@ -256,15 +391,15 @@ impl TraitRef {
         path: &Path,
         explicit_self_ty: Option<Ty>,
     ) -> Option<Self> {
-        let resolved = match resolver.resolve_path_without_assoc_items(db, &path).take_types()? {
-            Resolution::Def(ModuleDef::Trait(tr)) => tr,
+        let resolved = match resolver.resolve_path_in_type_ns_fully(db, &path)? {
+            TypeNs::Trait(tr) => tr,
             _ => return None,
         };
         let segment = path.segments.last().expect("path should have at least one segment");
         Some(TraitRef::from_resolved_path(db, resolver, resolved, segment, explicit_self_ty))
     }
 
-    fn from_resolved_path(
+    pub(super) fn from_resolved_path(
         db: &impl HirDatabase,
         resolver: &Resolver,
         resolved: Trait,
@@ -273,10 +408,7 @@ impl TraitRef {
     ) -> Self {
         let mut substs = TraitRef::substs_from_path(db, resolver, segment, resolved);
         if let Some(self_ty) = explicit_self_ty {
-            // FIXME this could be nicer
-            let mut substs_vec = substs.0.to_vec();
-            substs_vec[0] = self_ty;
-            substs.0 = substs_vec.into();
+            make_mut_slice(&mut substs.0)[0] = self_ty;
         }
         TraitRef { trait_: resolved, substs }
     }
@@ -310,14 +442,71 @@ impl TraitRef {
         TraitRef { trait_, substs }
     }
 
-    pub(crate) fn for_where_predicate(
+    pub(crate) fn from_type_bound(
         db: &impl HirDatabase,
         resolver: &Resolver,
-        pred: &WherePredicate,
+        bound: &TypeBound,
+        self_ty: Ty,
     ) -> Option<TraitRef> {
-        let self_ty = Ty::from_hir(db, resolver, &pred.type_ref);
-        TraitRef::from_path(db, resolver, &pred.trait_ref, Some(self_ty))
+        match bound {
+            TypeBound::Path(path) => TraitRef::from_path(db, resolver, path, Some(self_ty)),
+            TypeBound::Error => None,
+        }
     }
+}
+
+impl GenericPredicate {
+    pub(crate) fn from_where_predicate<'a>(
+        db: &'a impl HirDatabase,
+        resolver: &'a Resolver,
+        where_predicate: &'a WherePredicate,
+    ) -> impl Iterator<Item = GenericPredicate> + 'a {
+        let self_ty = Ty::from_hir(db, resolver, &where_predicate.type_ref);
+        GenericPredicate::from_type_bound(db, resolver, &where_predicate.bound, self_ty)
+    }
+
+    pub(crate) fn from_type_bound<'a>(
+        db: &'a impl HirDatabase,
+        resolver: &'a Resolver,
+        bound: &'a TypeBound,
+        self_ty: Ty,
+    ) -> impl Iterator<Item = GenericPredicate> + 'a {
+        let trait_ref = TraitRef::from_type_bound(db, &resolver, bound, self_ty);
+        iter::once(trait_ref.clone().map_or(GenericPredicate::Error, GenericPredicate::Implemented))
+            .chain(
+                trait_ref.into_iter().flat_map(move |tr| {
+                    assoc_type_bindings_from_type_bound(db, resolver, bound, tr)
+                }),
+            )
+    }
+}
+
+fn assoc_type_bindings_from_type_bound<'a>(
+    db: &'a impl HirDatabase,
+    resolver: &'a Resolver,
+    bound: &'a TypeBound,
+    trait_ref: TraitRef,
+) -> impl Iterator<Item = GenericPredicate> + 'a {
+    let last_segment = match bound {
+        TypeBound::Path(path) => path.segments.last(),
+        TypeBound::Error => None,
+    };
+    last_segment
+        .into_iter()
+        .flat_map(|segment| segment.args_and_bindings.iter())
+        .flat_map(|args_and_bindings| args_and_bindings.bindings.iter())
+        .map(move |(name, type_ref)| {
+            let associated_ty =
+                match trait_ref.trait_.associated_type_by_name_including_super_traits(db, &name) {
+                    None => return GenericPredicate::Error,
+                    Some(t) => t,
+                };
+            let projection_ty =
+                ProjectionTy { associated_ty, parameters: trait_ref.substs.clone() };
+            let ty = Ty::from_hir(db, resolver, type_ref);
+            let projection_predicate = ProjectionPredicate { projection_ty, ty };
+            GenericPredicate::Projection(projection_predicate)
+        })
 }
 
 /// Build the declared type of an item. This depends on the namespace; e.g. for
@@ -327,11 +516,9 @@ impl TraitRef {
 pub(crate) fn type_for_def(db: &impl HirDatabase, def: TypableDef, ns: Namespace) -> Ty {
     match (def, ns) {
         (TypableDef::Function(f), Namespace::Values) => type_for_fn(db, f),
-        (TypableDef::Struct(s), Namespace::Types) => type_for_adt(db, s),
-        (TypableDef::Struct(s), Namespace::Values) => type_for_struct_constructor(db, s),
-        (TypableDef::Enum(e), Namespace::Types) => type_for_adt(db, e),
+        (TypableDef::Adt(Adt::Struct(s)), Namespace::Values) => type_for_struct_constructor(db, s),
+        (TypableDef::Adt(adt), Namespace::Types) => type_for_adt(db, adt),
         (TypableDef::EnumVariant(v), Namespace::Values) => type_for_enum_variant_constructor(db, v),
-        (TypableDef::Union(u), Namespace::Types) => type_for_adt(db, u),
         (TypableDef::TypeAlias(t), Namespace::Types) => type_for_type_alias(db, t),
         (TypableDef::Const(c), Namespace::Values) => type_for_const(db, c),
         (TypableDef::Static(c), Namespace::Values) => type_for_static(db, c),
@@ -339,8 +526,8 @@ pub(crate) fn type_for_def(db: &impl HirDatabase, def: TypableDef, ns: Namespace
 
         // 'error' cases:
         (TypableDef::Function(_), Namespace::Types) => Ty::Unknown,
-        (TypableDef::Union(_), Namespace::Values) => Ty::Unknown,
-        (TypableDef::Enum(_), Namespace::Values) => Ty::Unknown,
+        (TypableDef::Adt(Adt::Union(_)), Namespace::Values) => Ty::Unknown,
+        (TypableDef::Adt(Adt::Enum(_)), Namespace::Values) => Ty::Unknown,
         (TypableDef::EnumVariant(_), Namespace::Types) => Ty::Unknown,
         (TypableDef::TypeAlias(_), Namespace::Values) => Ty::Unknown,
         (TypableDef::Const(_), Namespace::Types) => Ty::Unknown,
@@ -370,16 +557,35 @@ pub(crate) fn type_for_field(db: &impl HirDatabase, field: StructField) -> Ty {
     Ty::from_hir(db, &resolver, type_ref)
 }
 
+/// This query exists only to be used when resolving short-hand associated types
+/// like `T::Item`.
+///
+/// See the analogous query in rustc and its comment:
+/// https://github.com/rust-lang/rust/blob/9150f844e2624eb013ec78ca08c1d416e6644026/src/librustc_typeck/astconv.rs#L46
+/// This is a query mostly to handle cycles somewhat gracefully; e.g. the
+/// following bounds are disallowed: `T: Foo<U::Item>, U: Foo<T::Item>`, but
+/// these are fine: `T: Foo<U::Item>, U: Foo<()>`.
+pub(crate) fn generic_predicates_for_param_query(
+    db: &impl HirDatabase,
+    def: GenericDef,
+    param_idx: u32,
+) -> Arc<[GenericPredicate]> {
+    let resolver = def.resolver(db);
+    resolver
+        .where_predicates_in_scope()
+        // we have to filter out all other predicates *first*, before attempting to lower them
+        .filter(|pred| Ty::from_hir_only_param(db, &resolver, &pred.type_ref) == Some(param_idx))
+        .flat_map(|pred| GenericPredicate::from_where_predicate(db, &resolver, pred))
+        .collect()
+}
+
 pub(crate) fn trait_env(
     db: &impl HirDatabase,
     resolver: &Resolver,
 ) -> Arc<super::TraitEnvironment> {
     let predicates = resolver
         .where_predicates_in_scope()
-        .map(|pred| {
-            TraitRef::for_where_predicate(db, &resolver, pred)
-                .map_or(GenericPredicate::Error, GenericPredicate::Implemented)
-        })
+        .flat_map(|pred| GenericPredicate::from_where_predicate(db, &resolver, pred))
         .collect::<Vec<_>>();
 
     Arc::new(super::TraitEnvironment { predicates })
@@ -391,14 +597,10 @@ pub(crate) fn generic_predicates_query(
     def: GenericDef,
 ) -> Arc<[GenericPredicate]> {
     let resolver = def.resolver(db);
-    let predicates = resolver
+    resolver
         .where_predicates_in_scope()
-        .map(|pred| {
-            TraitRef::for_where_predicate(db, &resolver, pred)
-                .map_or(GenericPredicate::Error, GenericPredicate::Implemented)
-        })
-        .collect::<Vec<_>>();
-    predicates.into()
+        .flat_map(|pred| GenericPredicate::from_where_predicate(db, &resolver, pred))
+        .collect()
 }
 
 /// Resolve the default type params from generics
@@ -412,9 +614,9 @@ pub(crate) fn generic_defaults_query(db: &impl HirDatabase, def: GenericDef) -> 
         .map(|p| {
             p.default.as_ref().map_or(Ty::Unknown, |path| Ty::from_hir_path(db, &resolver, path))
         })
-        .collect::<Vec<_>>();
+        .collect();
 
-    Substs(defaults.into())
+    Substs(defaults)
 }
 
 fn fn_sig_for_fn(db: &impl HirDatabase, def: Function) -> FnSig {
@@ -455,14 +657,44 @@ fn type_for_builtin(def: BuiltinType) -> Ty {
         BuiltinType::Char => TypeCtor::Char,
         BuiltinType::Bool => TypeCtor::Bool,
         BuiltinType::Str => TypeCtor::Str,
-        BuiltinType::Int(ty) => TypeCtor::Int(ty.into()),
-        BuiltinType::Float(ty) => TypeCtor::Float(ty.into()),
+        BuiltinType::Int(t) => TypeCtor::Int(IntTy::from(t).into()),
+        BuiltinType::Float(t) => TypeCtor::Float(FloatTy::from(t).into()),
     })
 }
 
+impl From<BuiltinInt> for IntTy {
+    fn from(t: BuiltinInt) -> Self {
+        IntTy { signedness: t.signedness, bitness: t.bitness }
+    }
+}
+
+impl From<BuiltinFloat> for FloatTy {
+    fn from(t: BuiltinFloat) -> Self {
+        FloatTy { bitness: t.bitness }
+    }
+}
+
+impl From<Option<BuiltinInt>> for Uncertain<IntTy> {
+    fn from(t: Option<BuiltinInt>) -> Self {
+        match t {
+            None => Uncertain::Unknown,
+            Some(t) => Uncertain::Known(t.into()),
+        }
+    }
+}
+
+impl From<Option<BuiltinFloat>> for Uncertain<FloatTy> {
+    fn from(t: Option<BuiltinFloat>) -> Self {
+        match t {
+            None => Uncertain::Unknown,
+            Some(t) => Uncertain::Known(t.into()),
+        }
+    }
+}
+
 fn fn_sig_for_struct_constructor(db: &impl HirDatabase, def: Struct) -> FnSig {
-    let var_data = def.variant_data(db);
-    let fields = match var_data.fields() {
+    let struct_data = db.struct_data(def.id.into());
+    let fields = match struct_data.variant_data.fields() {
         Some(fields) => fields,
         None => panic!("fn_sig_for_struct_constructor called on unit struct"),
     };
@@ -477,8 +709,8 @@ fn fn_sig_for_struct_constructor(db: &impl HirDatabase, def: Struct) -> FnSig {
 
 /// Build the type of a tuple struct constructor.
 fn type_for_struct_constructor(db: &impl HirDatabase, def: Struct) -> Ty {
-    let var_data = def.variant_data(db);
-    if var_data.fields().is_none() {
+    let struct_data = db.struct_data(def.id.into());
+    if struct_data.variant_data.fields().is_none() {
         return type_for_adt(db, def); // Unit struct
     }
     let generics = def.generic_params(db);
@@ -514,7 +746,7 @@ fn type_for_enum_variant_constructor(db: &impl HirDatabase, def: EnumVariant) ->
     Ty::apply(TypeCtor::FnDef(def.into()), substs)
 }
 
-fn type_for_adt(db: &impl HirDatabase, adt: impl Into<AdtDef> + HasGenericParams) -> Ty {
+fn type_for_adt(db: &impl HirDatabase, adt: impl Into<Adt> + HasGenericParams) -> Ty {
     let generics = adt.generic_params(db);
     Ty::apply(TypeCtor::Adt(adt.into()), Substs::identity(&generics))
 }
@@ -531,9 +763,7 @@ fn type_for_type_alias(db: &impl HirDatabase, t: TypeAlias) -> Ty {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TypableDef {
     Function(Function),
-    Struct(Struct),
-    Union(Union),
-    Enum(Enum),
+    Adt(Adt),
     EnumVariant(EnumVariant),
     TypeAlias(TypeAlias),
     Const(Const),
@@ -542,9 +772,7 @@ pub enum TypableDef {
 }
 impl_froms!(
     TypableDef: Function,
-    Struct,
-    Union,
-    Enum,
+    Adt(Struct, Enum, Union),
     EnumVariant,
     TypeAlias,
     Const,
@@ -556,9 +784,7 @@ impl From<ModuleDef> for Option<TypableDef> {
     fn from(def: ModuleDef) -> Option<TypableDef> {
         let res = match def {
             ModuleDef::Function(f) => f.into(),
-            ModuleDef::Struct(s) => s.into(),
-            ModuleDef::Union(u) => u.into(),
-            ModuleDef::Enum(e) => e.into(),
+            ModuleDef::Adt(adt) => adt.into(),
             ModuleDef::EnumVariant(v) => v.into(),
             ModuleDef::TypeAlias(t) => t.into(),
             ModuleDef::Const(v) => v.into(),
@@ -577,6 +803,16 @@ pub enum CallableDef {
     EnumVariant(EnumVariant),
 }
 impl_froms!(CallableDef: Function, Struct, EnumVariant);
+
+impl CallableDef {
+    pub fn krate(self, db: &impl HirDatabase) -> Option<crate::Crate> {
+        match self {
+            CallableDef::Function(f) => f.krate(db),
+            CallableDef::Struct(s) => s.krate(db),
+            CallableDef::EnumVariant(e) => e.parent_enum(db).krate(db),
+        }
+    }
+}
 
 impl From<CallableDef> for GenericDef {
     fn from(def: CallableDef) -> GenericDef {
